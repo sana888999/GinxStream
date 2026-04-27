@@ -1,0 +1,26 @@
+{
+  "name": "evaluate_script",
+  "description": "Evaluate a JavaScript function inside the currently selected page. Returns the response as JSON,\nso returned values have to be JSON-serializable.",
+  "arguments": {
+    "type": "object",
+    "properties": {
+      "function": {
+        "type": "string",
+        "description": "A JavaScript function declaration to be executed by the tool in the currently selected page.\nExample without arguments: `() => {\n  return document.title\n}` or `async () => {\n  return await fetch(\"example.com\")\n}`.\nExample with arguments: `(el) => {\n  return el.innerText;\n}`\n"
+      },
+      "args": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "description": "The uid of an element on the page from the page content snapshot"
+        },
+        "description": "An optional list of arguments to pass to the function."
+      }
+    },
+    "required": [
+      "function"
+    ],
+    "additionalProperties": false,
+    "$schema": "http://json-schema.org/draft-07/schema#"
+  }
+}

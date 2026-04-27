@@ -1,0 +1,26 @@
+{
+    "mappl": {
+        "domain": "tv",
+        "full_url": "https://mappl.tv/",
+        "time_change": "2026-04-21 00:00:00",
+        "last_status": 200
+    },
+    "hydrahd": {
+        "domain": "ru",
+        "full_url": "https://hydrahd.ru/",
+        "time_change": "2026-04-21 00:00:00",
+        "last_status": 200
+    },
+    "streamingunity": {
+        "domain": "autos",
+        "full_url": "https://streamingunity.autos/",
+        "time_change": "2026-04-21 00:00:00",
+        "last_status": 200
+    },
+    "tantifilm": {
+        "domain": "online",
+        "full_url": "https://tantifilm.online/",
+        "time_change": "2026-04-21 00:00:00",
+        "last_status": 200
+    }
+}

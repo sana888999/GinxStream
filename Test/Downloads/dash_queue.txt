@@ -1,0 +1,7 @@
+# Add one job per line:  mpd_url | license_url | optional_name
+# Optional_name = output filename (no extension). If empty, name is from MPD URL.
+# Add more lines while SimpleDASH.py is running for non-stop downloads.
+# Refresh pallycon-customdata-v2 in SimpleDASH.py when the token expires.
+#
+https://tagmango.com/assets/1733164442001/master.mpd|https://license-global.pallycon.com/ri/licenseManager.do|Editing a Trendy Video - Algorithm Focused
+

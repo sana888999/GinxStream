@@ -1,0 +1,104 @@
+{% extends "searchapp/base.html" %}
+
+{% block content %}
+<style>
+  .server-btn {
+    padding: 5px 14px;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 999px;
+    cursor: pointer;
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,.05);
+    color: var(--muted);
+    transition: all .15s;
+    letter-spacing: .3px;
+  }
+  .server-btn:hover { background: rgba(255,255,255,.1); color: var(--text); }
+  .server-btn.active {
+    background: linear-gradient(135deg, var(--cyan), #38BDF8);
+    border-color: transparent;
+    color: #070A12;
+  }
+  @keyframes pulse-live {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%       { opacity: .45; transform: scale(.7); }
+  }
+</style>
+
+<div style="max-width:1100px;margin:0 auto;padding:24px 16px">
+
+  <!-- Back + title -->
+  <div style="margin-bottom:18px">
+    <a href="{% url 'live_sports' %}"
+       style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);text-decoration:none;margin-bottom:10px"
+       onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--muted)'">
+      <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M15 19l-7-7 7-7"/>
+      </svg>
+      Back to Live Sports
+    </a>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="display:flex;align-items:center;gap:5px">
+          <div style="width:7px;height:7px;border-radius:50%;background:#F87171;animation:pulse-live 1.4s ease infinite"></div>
+          <span style="font-size:10px;font-weight:700;color:#F87171;letter-spacing:.5px">LIVE</span>
+        </div>
+        <h1 style="font-size:clamp(15px,3vw,20px);font-weight:800;color:var(--text);line-height:1.2;margin:0">{{ title }}</h1>
+      </div>
+
+      <!-- Server switcher (shown when multiple servers available) -->
+      {% if all_servers|length > 1 %}
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+        <span style="font-size:11px;color:var(--muted)">Servers:</span>
+        <div style="display:flex;gap:4px;flex-wrap:wrap" id="server-btns">
+          {% for s in all_servers %}
+          <button class="server-btn {% if forloop.first %}active{% endif %}"
+                  data-url="{{ s.embed_url }}"
+                  data-num="{{ s.number }}"
+                  onclick="switchServer(this)">
+            S{{ s.number }}
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Player — same proven wrapper as before -->
+  <div style="background:#000;border-radius:14px;overflow:hidden;border:1px solid rgba(255,255,255,.07);box-shadow:0 24px 64px rgba(0,0,0,.6)">
+    <div style="position:relative;width:100%;padding-bottom:56.25%;height:0;overflow:hidden">
+      <iframe
+        id="live-player"
+        src="{{ embed_url }}"
+        style="position:absolute;top:0;left:0;width:100%;height:100%;border:0"
+        allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+        allowfullscreen
+        referrerpolicy="no-referrer-when-downgrade">
+      </iframe>
+    </div>
+  </div>
+
+  <p style="margin-top:12px;font-size:11px;color:var(--muted);line-height:1.6">
+    Stream provided via iframe embed.
+    {% if all_servers|length > 1 %}
+    If a server fails to load, click another server button above to switch instantly without reloading the page.
+    {% else %}
+    If the stream fails to load, try going back and refreshing.
+    {% endif %}
+  </p>
+
+</div>
+
+<script>
+function switchServer(btn) {
+  const url = btn.getAttribute('data-url');
+  if (!url) return;
+  document.getElementById('live-player').src = url;
+  document.querySelectorAll('#server-btns .server-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,60 @@
+---
+pid: 34636
+cwd: "c:\\Users\\RTX\\Desktop\\StreamingCommunity-main"
+command: "python -c \"import runpy,os; os.chdir(r'c:\\\\Users\\\\RTX\\\\Desktop\\\\StreamingCommunity-main'); runpy.run_path(r'apps\\\\webgui\\\\run.py', run_name='__main__')\""
+started_at: 2026-04-21T12:29:23.152Z
+running_for_ms: 2004     
+---
+Running pre-run hooks...
+[Info] Loaded 13 streaming APIs: streamingcommunity, guardaserie, animeunity, animeworld, crunchyroll, mediasetinfinity, raiplay, discoveryeu, dmax, nove, realtime, homegardentv, foodnetwork
+
+Type 'manage.py help <subcommand>' for help on a specific subcommand.
+
+Available subcommands:
+
+[auth]
+    changepassword
+    createsuperuser
+
+[contenttypes]
+    remove_stale_contenttypes
+
+[django]
+    check
+    compilemessages
+    createcachetable
+    dbshell
+    diffsettings
+    dumpdata
+    flush
+    inspectdb
+    loaddata
+    makemessages
+    makemigrations
+    migrate
+    optimizemigration
+    sendtestemail
+    shell
+    showmigrations
+    sqlflush
+    sqlmigrate
+    sqlsequencereset
+    squashmigrations
+    startapp
+    startproject
+    test
+    testserver
+
+[sessions]
+    clearsessions
+
+[staticfiles]
+    collectstatic
+    findstatic
+    runserver
+
+---
+exit_code: 0
+elapsed_ms: 4903
+ended_at: 2026-04-21T12:29:28.055Z
+---

@@ -1,0 +1,94 @@
+{% extends "searchapp/base.html" %}
+{% load static %}
+
+{% block title %}Settings{% endblock %}
+
+{% block content %}
+<div class="py-6 sm:py-8 lg:py-12 animate-fade-in max-w-3xl mx-auto">
+
+  <!-- Header -->
+  <div class="mb-8">
+    <div class="flex items-center gap-3 sm:gap-4 mb-3">
+      <button
+        onclick="window.history.back()"
+        class="p-2 hover:bg-white/10 rounded-lg transition-colors flex-shrink-0"
+      >
+        <svg class="w-5 h-5 sm:w-6 sm:h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+        </svg>
+      </button>
+      <h1 class="text-4xl sm:text-5xl font-black text-white leading-tight">Settings</h1>
+    </div>
+    <p class="text-gray-400 text-sm sm:text-base">
+      Preferences for titles and audio-track downloads. Applies on the next download.
+    </p>
+  </div>
+
+  <form method="post" class="space-y-6">
+    {% csrf_token %}
+
+    <!-- Original Titles -->
+    <section class="bg-gradient-to-br from-gray-900/80 to-gray-900/40 backdrop-blur-sm border border-gray-800 rounded-2xl p-6">
+      <h2 class="text-xl font-bold text-white mb-2">Titles</h2>
+      <p class="text-gray-400 text-sm mb-5">
+        Some sites (like StreamingCommunity) label content in Italian.
+        Enable this to show and download using the original (usually English) titles.
+      </p>
+      <label class="flex items-center gap-3 cursor-pointer select-none">
+        <input
+          type="checkbox"
+          name="use_original_titles"
+          {% if use_original_titles %}checked{% endif %}
+          class="w-5 h-5 rounded border-gray-600 bg-black text-red-600 focus:ring-red-600 focus:ring-offset-0"
+        >
+        <span class="text-white font-medium">Use original titles (via TMDB)</span>
+      </label>
+    </section>
+
+    <!-- Additional dubs -->
+    <section class="bg-gradient-to-br from-gray-900/80 to-gray-900/40 backdrop-blur-sm border border-gray-800 rounded-2xl p-6">
+      <h2 class="text-xl font-bold text-white mb-2">Additional Audio Dubs</h2>
+      <p class="text-gray-400 text-sm mb-5">
+        Original audio + English are always pulled when available. Enable extra
+        languages here and each enabled dub track will also be downloaded when
+        the source provides it (so viewers can switch audio in the player).
+        <br>
+        <span class="text-gray-500">
+          Note: for Hindi/Urdu/Punjabi content the English dub is automatically skipped,
+          since those are native languages for our users.
+        </span>
+      </p>
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        {% for opt in dub_options %}
+        <label class="flex items-center gap-2 p-3 rounded-lg border border-gray-800 hover:border-gray-600 cursor-pointer transition-colors">
+          <input
+            type="checkbox"
+            name="additional_dubs"
+            value="{{ opt.code }}"
+            {% if opt.enabled %}checked{% endif %}
+            class="w-4 h-4 rounded border-gray-600 bg-black text-red-600 focus:ring-red-600 focus:ring-offset-0"
+          >
+          <span class="text-white text-sm font-medium">{{ opt.label }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </section>
+
+    <div class="flex items-center gap-3">
+      <button
+        type="submit"
+        class="px-6 py-3 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors"
+      >
+        Save Settings
+      </button>
+      <a
+        href="{% url 'search_home' %}"
+        class="px-6 py-3 rounded-lg border border-gray-700 text-gray-300 hover:bg-white/5 transition-colors"
+      >
+        Cancel
+      </a>
+    </div>
+  </form>
+
+</div>
+{% endblock %}

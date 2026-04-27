@@ -1,0 +1,408 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#070A12">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          animation: {
+            'fade-in': 'fadeIn 0.5s ease-out',
+            'slide-in': 'slideIn 0.4s ease-out',
+            'zoom-in': 'zoomIn 0.35s ease-out',
+          },
+          keyframes: {
+            fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+            slideIn: { '0%': { transform: 'translateY(16px)', opacity: '0' }, '100%': { transform: 'translateY(0)', opacity: '1' } },
+            zoomIn: { '0%': { transform: 'scale(0.96)', opacity: '0' }, '100%': { transform: 'scale(1)', opacity: '1' } },
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+    :root {
+      --bg0: #070A12;
+      --bg1: #0B1020;
+      --card: #0E1630;
+      --card2: #0C1328;
+      --text: #E7E9F4;
+      --muted: #A8B0D3;
+      --line: rgba(255,255,255,.08);
+      --line-hover: rgba(93,230,255,.28);
+      --cyan: #5DE6FF;
+      --purple: #A855F7;
+      --glow-cyan: rgba(93,230,255,.15);
+      --glow-purple: rgba(168,85,247,.15);
+      --navbar-height: 3.75rem;
+      --radius: 16px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      background:
+        radial-gradient(ellipse 900px 500px at 10% 0%,   rgba(93,230,255,.12), transparent 60%),
+        radial-gradient(ellipse 800px 450px at 90% 10%,  rgba(168,85,247,.12), transparent 55%),
+        radial-gradient(ellipse 1100px 600px at 50% 95%, rgba(34,197,94,.07),  transparent 60%),
+        linear-gradient(180deg, var(--bg0) 0%, var(--bg1) 100%);
+      background-attachment: fixed;
+      min-height: 100vh;
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #070A12; }
+    ::-webkit-scrollbar-thumb { background: rgba(93,230,255,.25); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(93,230,255,.45); }
+
+    /* ── Navbar ── */
+    #navbar {
+      border-bottom: 1px solid var(--line);
+      background: rgba(7,10,18,.72);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+    #navbar.scrolled {
+      background: rgba(7,10,18,.92);
+      border-bottom-color: rgba(93,230,255,.12);
+    }
+
+    /* ── Nav links ── */
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--muted);
+      padding: 5px 11px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      transition: color .18s ease, border-color .18s ease, background .18s ease;
+      text-decoration: none;
+    }
+    .nav-link:hover {
+      color: var(--text);
+      border-color: var(--line);
+      background: rgba(255,255,255,.04);
+    }
+    .nav-link.active {
+      color: var(--cyan);
+      border-color: rgba(93,230,255,.25);
+      background: rgba(93,230,255,.07);
+    }
+    .nav-link-accent {
+      color: #F87171;
+    }
+    .nav-link-accent:hover {
+      color: #FCA5A5;
+      border-color: rgba(248,113,113,.25);
+      background: rgba(248,113,113,.07);
+    }
+
+    /* ── Brand ── */
+    .brand-word { font-size: 18px; font-weight: 900; letter-spacing: -.3px; color: var(--text); }
+    .brand-accent { color: var(--cyan); }
+
+    /* ── Cards ── */
+    .card-hover {
+      transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+    }
+    .card-hover:hover {
+      transform: translateY(-3px);
+      border-color: var(--line-hover) !important;
+      box-shadow: 0 0 0 5px rgba(93,230,255,.06), 0 14px 32px rgba(0,0,0,.45);
+    }
+
+    /* ── Glass panel (used by inner cards/sections) ── */
+    .glass {
+      background: rgba(14,22,48,.55);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      backdrop-filter: blur(8px);
+    }
+
+    /* ── Buttons ── */
+    .btn-cyan {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 14px;
+      font-size: 12px; font-weight: 600;
+      color: var(--bg0);
+      background: linear-gradient(135deg, #5DE6FF, #38BDF8);
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      transition: opacity .18s ease, transform .18s ease;
+    }
+    .btn-cyan:hover { opacity: .88; transform: translateY(-1px); }
+
+    .btn-ghost {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 13px;
+      font-size: 12px; font-weight: 500;
+      color: var(--muted);
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: color .18s ease, border-color .18s ease;
+    }
+    .btn-ghost:hover { color: var(--text); border-color: rgba(93,230,255,.25); }
+
+    /* ── Chip / Badge ── */
+    .chip {
+      display: inline-flex; align-items: center;
+      padding: 3px 9px;
+      font-size: 11px; font-weight: 600;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.04);
+      color: var(--muted);
+    }
+    .chip-cyan { border-color: rgba(93,230,255,.3); color: var(--cyan); background: rgba(93,230,255,.08); }
+    .chip-purple { border-color: rgba(168,85,247,.3); color: #C084FC; background: rgba(168,85,247,.08); }
+    .chip-red { border-color: rgba(248,113,113,.3); color: #F87171; background: rgba(248,113,113,.08); }
+    .chip-green { border-color: rgba(52,211,153,.3); color: #34D399; background: rgba(52,211,153,.08); }
+
+    /* ── Section headings ── */
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .9px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    /* ── Toast messages ── */
+    .toast-success { background: rgba(52,211,153,.15); border: 1px solid rgba(52,211,153,.3); color: #6EE7B7; }
+    .toast-error   { background: rgba(248,113,113,.15); border: 1px solid rgba(248,113,113,.3); color: #FCA5A5; }
+
+    /* ── Mobile menu ── */
+    #mobile-menu { border-top: 1px solid var(--line); background: rgba(7,10,18,.96); }
+    .mobile-link {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 16px;
+      font-size: 14px; font-weight: 500;
+      color: var(--muted);
+      border-radius: 10px;
+      text-decoration: none;
+      transition: color .16s ease, background .16s ease;
+    }
+    .mobile-link:hover { color: var(--text); background: rgba(255,255,255,.05); }
+    .mobile-link.accent { color: #F87171; }
+
+    /* ── Glow divider ── */
+    .glow-line {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(93,230,255,.2), transparent);
+    }
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+
+<body>
+
+  <!-- Top Navigation -->
+  <nav class="fixed top-0 left-0 right-0 z-50 transition-all duration-300" id="navbar">
+    <div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-10 h-[var(--navbar-height)] flex items-center gap-4">
+
+      <!-- Logo -->
+      <a href="{% url 'search_home' %}" class="flex items-center gap-2.5 mr-2" style="text-decoration:none">
+        <div style="width:32px;height:32px;border-radius:10px;background:rgba(93,230,255,.12);border:1px solid rgba(93,230,255,.2);display:grid;place-items:center;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5DE6FF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+          </svg>
+        </div>
+        <div>
+          <span class="brand-word">CRYPT<span class="brand-accent">ER</span></span>
+          <div style="font-size:10px;color:var(--muted);line-height:1;margin-top:1px">v{{ app_version }}</div>
+        </div>
+      </a>
+
+      <!-- Desktop Nav -->
+      <div class="hidden lg:flex items-center gap-1 ml-2">
+        <a href="{% url 'download_dashboard' %}" class="nav-link">
+          <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+          </svg>
+          Downloads
+        </a>
+        <a href="{% url 'drm_page' %}" class="nav-link">
+          <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6l-4-4V5a2 2 0 012-2h12a2 2 0 012 2v4"/>
+          </svg>
+          DRM
+        </a>
+        <a href="{% url 'live_sports' %}" class="nav-link">
+          <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+          </svg>
+          Live Sports
+        </a>
+        <a href="{% url 'audiobooks' %}" class="nav-link">
+          <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+          </svg>
+          Audiobooks
+        </a>
+        <a href="{% url 'watchlist' %}" class="nav-link nav-link-accent">
+          <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
+          </svg>
+          Watchlist
+        </a>
+        <a href="{% url 'settings_page' %}" class="nav-link">
+          <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+          Settings
+        </a>
+      </div>
+
+      <div class="flex-1"></div>
+
+      <!-- Hamburger (mobile) -->
+      <button id="hamburger-btn" class="lg:hidden p-2 rounded-lg transition-colors" onclick="toggleMobileMenu()"
+        style="color:var(--muted);border:1px solid var(--line);background:rgba(255,255,255,.03)">
+        <svg id="hamburger-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
+        </svg>
+        <svg id="close-icon" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Mobile Menu -->
+    <div id="mobile-menu" class="lg:hidden hidden">
+      <div class="px-4 py-3 space-y-0.5">
+        <a href="{% url 'search_home' %}" class="mobile-link">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+          </svg>
+          Search
+        </a>
+        <a href="{% url 'download_dashboard' %}" class="mobile-link">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+          </svg>
+          Downloads
+        </a>
+        <a href="{% url 'drm_page' %}" class="mobile-link">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6l-4-4V5a2 2 0 012-2h12a2 2 0 012 2v4"/>
+          </svg>
+          DRM
+        </a>
+        <a href="{% url 'live_sports' %}" class="mobile-link">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+          </svg>
+          Live Sports
+        </a>
+        <a href="{% url 'audiobooks' %}" class="mobile-link">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+          </svg>
+          Audiobooks
+        </a>
+        <a href="{% url 'watchlist' %}" class="mobile-link accent">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
+          </svg>
+          Watchlist
+        </a>
+        <a href="{% url 'settings_page' %}" class="mobile-link">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+          Settings
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="relative min-h-screen" style="padding-top:var(--navbar-height)">
+
+    <!-- Toast Messages -->
+    {% if messages %}
+    <div class="fixed top-20 right-4 z-50 space-y-2 max-w-sm animate-slide-in" style="pointer-events:none">
+      {% for message in messages %}
+      <div class="px-4 py-3 rounded-xl flex items-start gap-3 text-sm font-medium
+        {% if message.tags == 'success' %}toast-success{% else %}toast-error{% endif %}"
+        style="pointer-events:all; backdrop-filter:blur(12px)">
+        <svg class="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+          {% if message.tags == 'success' %}
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+          {% else %}
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+          {% endif %}
+        </svg>
+        <span>{{ message }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-10">
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+
+  <script>
+    function toggleMobileMenu() {
+      const menu = document.getElementById('mobile-menu');
+      const hIcon = document.getElementById('hamburger-icon');
+      const xIcon = document.getElementById('close-icon');
+      menu.classList.toggle('hidden');
+      hIcon.classList.toggle('hidden');
+      xIcon.classList.toggle('hidden');
+    }
+
+    window.addEventListener('resize', () => {
+      if (window.innerWidth >= 1024) {
+        const menu = document.getElementById('mobile-menu');
+        if (menu && !menu.classList.contains('hidden')) {
+          menu.classList.add('hidden');
+          document.getElementById('hamburger-icon').classList.remove('hidden');
+          document.getElementById('close-icon').classList.add('hidden');
+        }
+      }
+    });
+
+    window.addEventListener('scroll', () => {
+      const nav = document.getElementById('navbar');
+      if (nav) nav.classList.toggle('scrolled', window.scrollY > 20);
+    });
+
+    // Highlight active nav link
+    (function() {
+      const path = window.location.pathname;
+      document.querySelectorAll('.nav-link, .mobile-link').forEach(a => {
+        const href = a.getAttribute('href') || '';
+        if (href !== '/' && path.startsWith(href) && href.length > 1) {
+          a.classList.add('active');
+        }
+      });
+    })();
+  </script>
+
+  {% block extra_scripts %}{% endblock %}
+</body>
+</html>

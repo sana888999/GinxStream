@@ -1,0 +1,13 @@
+---
+pid: 29484
+cwd: "c:\\Users\\RTX\\Desktop\\StreamingCommunity-main"
+command: "python -c \"import runpy,os; os.chdir(r'c:\\\\Users\\\\RTX\\\\Desktop\\\\StreamingCommunity-main'); runpy.run_path(r'apps\\\\firefox\\\\download_server.py', run_name='__main__')\""
+started_at: 2026-04-21T12:28:43.044Z
+running_for_ms: 32043    
+---
+
+---
+exit_code: 4294967295
+elapsed_ms: 36150
+ended_at: 2026-04-21T12:29:19.194Z
+---

@@ -1,0 +1,19 @@
+{
+    "TMDB": {
+        "api_key": "e296d301b69e1dfc1147716238093e6f"
+    },
+    "crunchyroll": {
+        "device_id": "",
+        "etp_rt": ""
+    },
+    "tubi": {
+        "email": "",
+        "password": ""
+    },
+    "mediasetinfinity": {
+        "beToken": ""
+    },
+    "discoveryeu": {
+        "st": ""
+    }
+}

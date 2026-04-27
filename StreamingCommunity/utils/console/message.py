@@ -1,0 +1,38 @@
+# 3.12.23
+
+import os
+import platform
+
+# External library
+from rich.console import Console
+
+
+# Internal utilities
+from StreamingCommunity.utils import config_manager
+
+
+# Variable
+# legacy_windows=False forces rich to write ANSI escape codes through stdout
+# instead of calling the Windows console API (which encodes via cp1252 and
+# crashes on characters like '\u2192').
+console = Console(legacy_windows=False)
+CLEAN = config_manager.config.get_bool('DEFAULT', 'show_message')
+SHOW = config_manager.config.get_bool('DEFAULT', 'show_message')
+
+
+def start_message(clean: bool=True):
+    """Display a stylized start message in the console."""
+    msg = r'''
+[green]→[purple]     ___                                         ______                     _           
+[green]→[purple]    / _ | ___________ _    _____ _____[yellow]  __ __[purple]   / __/ /________ ___ ___ _  (_)__  ___ _ 
+[green]→[purple]   / __ |/ __/ __/ _ \ |/|/ / _ `/ __/[yellow]  \ \ /[purple]  _\ \/ __/ __/ -_) _ `/  ' \/ / _ \/ _ `/ 
+[green]→[purple]  /_/ |_/_/ /_/  \___/__,__/\_,_/_/   [yellow] /_\_\ [purple] /___/\__/_/  \__/\_,_/_/_/_/_/_//_/\_, /  
+[green]→[purple]                                                                                /___/   
+    '''
+
+    if CLEAN and clean: 
+        os.system("cls" if platform.system() == 'Windows' else "clear")
+        # console.clear() DA NON USARE CHE DIO CANE CREA PROBLEMI
+    
+    if SHOW:
+        console.print(f"[purple]{msg}")

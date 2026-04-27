@@ -1,0 +1,400 @@
+{% extends "searchapp/base.html" %}
+
+{% block extra_head %}
+<style>
+  /* ── Tab system ── */
+  .tab-bar {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    background: rgba(255,255,255,.03);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+  }
+  .tab-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 999px;
+    border: none;
+    cursor: pointer;
+    color: var(--muted);
+    background: transparent;
+    transition: color .18s ease, background .18s ease;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active {
+    color: var(--bg0);
+    background: linear-gradient(135deg, #5DE6FF, #38BDF8);
+  }
+  .tab-btn .count {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: rgba(0,0,0,.2);
+  }
+  .tab-btn.active .count { background: rgba(0,0,0,.25); }
+
+  /* ── Event card ── */
+  .event-card {
+    display: flex;
+    flex-direction: column;
+    background: rgba(14,22,48,.55);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    overflow: hidden;
+    transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+  }
+  .event-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(93,230,255,.25);
+    box-shadow: 0 0 0 4px rgba(93,230,255,.05), 0 12px 28px rgba(0,0,0,.4);
+  }
+
+  /* ── Live dot ── */
+  .live-dot {
+    width: 7px; height: 7px;
+    background: #F87171;
+    border-radius: 999px;
+    animation: pulse-live 1.4s ease infinite;
+  }
+  @keyframes pulse-live {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%       { opacity: .5; transform: scale(.75); }
+  }
+
+  /* ── Watch buttons ── */
+  .watch-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    text-decoration: none;
+    transition: opacity .18s ease, transform .18s ease;
+    white-space: nowrap;
+  }
+  .watch-btn:hover { opacity: .85; transform: translateY(-1px); }
+  .watch-btn-red   { background: rgba(239,68,68,.18); border-color: rgba(239,68,68,.35); color: #FCA5A5; }
+  .watch-btn-cyan  { background: rgba(93,230,255,.12); border-color: rgba(93,230,255,.3);  color: var(--cyan); }
+  .watch-btn-purple{ background: rgba(168,85,247,.12); border-color: rgba(168,85,247,.3);  color: #C084FC; }
+
+  /* ── Channel card ── */
+  .channel-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 12px;
+    background: rgba(14,22,48,.55);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    text-decoration: none;
+    color: var(--text);
+    transition: transform .2s ease, border-color .2s ease;
+    text-align: center;
+  }
+  .channel-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(93,230,255,.28);
+    background: rgba(14,22,48,.8);
+  }
+
+  /* ── Category header ── */
+  .category-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .category-dot {
+    width: 8px; height: 8px;
+    border-radius: 999px;
+    flex-shrink: 0;
+  }
+
+  /* ── Empty state ── */
+  .empty-state {
+    text-align: center;
+    padding: 64px 24px;
+    background: rgba(14,22,48,.35);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+  }
+
+  /* ── Alert banners ── */
+  .alert-warn {
+    background: rgba(251,191,36,.07);
+    border: 1px solid rgba(251,191,36,.25);
+    border-radius: 14px;
+    padding: 16px 20px;
+  }
+  .alert-info {
+    background: rgba(93,230,255,.07);
+    border: 1px solid rgba(93,230,255,.25);
+    border-radius: 14px;
+    padding: 16px 20px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="py-8 animate-fade-in" style="max-width:1400px;margin:0 auto">
+
+  <!-- Page Header -->
+  <div class="flex flex-wrap items-end justify-between gap-4 mb-8">
+    <div>
+      <div class="flex items-center gap-3 mb-2">
+        <div style="width:36px;height:36px;border-radius:12px;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.25);display:grid;place-items:center">
+          <svg width="18" height="18" fill="none" stroke="#F87171" viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+          </svg>
+        </div>
+        <h1 style="font-size:26px;font-weight:900;color:var(--text);letter-spacing:-.3px">Live Sports</h1>
+        {% if event_count %}
+        <span class="chip chip-red">
+          <span class="live-dot" style="margin-right:5px"></span>
+          {{ event_count }} live
+        </span>
+        {% endif %}
+      </div>
+      <p style="font-size:13px;color:var(--muted)">Real-time events from HydraHD, Mappl.tv &amp; NBAMonster</p>
+    </div>
+
+    <a href="{% url 'live_sports' %}" class="btn-ghost">
+      <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9M20 20v-5h-.581m0 0a8.003 8.003 0 01-15.357-2"/>
+      </svg>
+      Refresh
+    </a>
+  </div>
+
+  <!-- Alert Banners -->
+  {% if login_required %}
+  <div class="alert-warn mb-4 flex gap-3">
+    <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="#FBBf24" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+    </svg>
+    <div>
+      <p style="font-size:13px;font-weight:600;color:#FDE68A;margin-bottom:3px">HydraHD session required</p>
+      <p style="font-size:12px;color:rgba(253,230,138,.7)">
+        Add your <code style="background:rgba(0,0,0,.3);padding:1px 5px;border-radius:4px;color:#FDE68A">Cookie</code> header for <strong>hydrahd.ru</strong>
+        to <code style="background:rgba(0,0,0,.3);padding:1px 5px;border-radius:4px;color:#FDE68A">Conf/login.json → hydrahd.session_cookie</code>
+      </p>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if mappl_login_required %}
+  <div class="alert-info mb-4 flex gap-3">
+    <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="var(--cyan)" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/><path d="M12 16v-4m0-4h.01"/>
+    </svg>
+    <div>
+      <p style="font-size:13px;font-weight:600;color:var(--cyan);margin-bottom:3px">Mappl.tv session required for live events</p>
+      <p style="font-size:12px;color:rgba(93,230,255,.7)">
+        Add your <code style="background:rgba(0,0,0,.3);padding:1px 5px;border-radius:4px;color:var(--cyan)">Cookie</code> to
+        <code style="background:rgba(0,0,0,.3);padding:1px 5px;border-radius:4px;color:var(--cyan)">Conf/login.json → mappl.session_cookie</code>
+      </p>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Empty state -->
+  {% if not grouped_events and not mappl_channels %}
+  <div class="empty-state">
+    <div style="width:52px;height:52px;border-radius:16px;background:rgba(255,255,255,.04);border:1px solid var(--line);display:grid;place-items:center;margin:0 auto 14px">
+      <svg width="24" height="24" fill="none" stroke="var(--muted)" viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+      </svg>
+    </div>
+    <p style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px">No live events right now</p>
+    <p style="font-size:13px;color:var(--muted)">Check back soon — events update in real time.</p>
+  </div>
+  {% endif %}
+
+  <!-- Tab Bar (only when both sections have content) -->
+  {% if grouped_events or mappl_channels %}
+  <div class="flex items-center gap-4 mb-6">
+    <div class="tab-bar">
+      {% if grouped_events %}
+      <button class="tab-btn active" id="tab-events" onclick="showTab('events')">
+        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+        </svg>
+        Events
+        <span class="count">{{ event_count }}</span>
+      </button>
+      {% endif %}
+      {% if mappl_channels %}
+      <button class="tab-btn {% if not grouped_events %}active{% endif %}" id="tab-channels" onclick="showTab('channels')">
+        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/>
+        </svg>
+        Live TV
+        <span class="count">{{ mappl_channels|length }}</span>
+      </button>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Events Tab -->
+  {% if grouped_events %}
+  <div id="pane-events">
+    {% for group in grouped_events %}
+    <section class="mb-10">
+      <div class="category-header">
+        <div class="category-dot" style="background:{% cycle '#5DE6FF' '#A855F7' '#F87171' '#34D399' '#FBBf24' %}"></div>
+        <h2 style="font-size:13px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--text)">
+          {{ group.category|default:"Live" }}
+        </h2>
+        <span class="chip" style="font-size:10px">{{ group.events|length }}</span>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {% for event in group.events %}
+        <div class="event-card">
+          {% if event.poster %}
+          <div style="position:relative;overflow:hidden;height:120px">
+            <img src="{{ event.poster }}" alt="" style="width:100%;height:100%;object-fit:cover;opacity:.7"/>
+            <div style="position:absolute;inset:0;background:linear-gradient(to bottom,transparent 40%,rgba(14,22,48,.95))"></div>
+          </div>
+          {% endif %}
+
+          <div style="padding:14px 14px 12px;flex:1;display:flex;flex-direction:column">
+            <!-- Header row -->
+            <div class="flex items-start justify-between gap-2 mb-2">
+              <h3 style="font-size:13px;font-weight:700;color:var(--text);line-height:1.3;flex:1">{{ event.title }}</h3>
+              <div class="flex items-center gap-1.5 flex-shrink-0 mt-0.5">
+                <div class="live-dot"></div>
+                <span style="font-size:10px;font-weight:700;color:#F87171;letter-spacing:.4px">LIVE</span>
+              </div>
+            </div>
+
+            <!-- Teams (if available) -->
+            {% if event.home_team and event.away_team %}
+            <div class="flex items-center gap-2 mb-2">
+              <span style="font-size:11px;font-weight:600;color:var(--text)">{{ event.home_team }}</span>
+              <span style="font-size:10px;color:var(--muted)">vs</span>
+              <span style="font-size:11px;font-weight:600;color:var(--text)">{{ event.away_team }}</span>
+            </div>
+            {% endif %}
+
+            <!-- Meta row -->
+            <div class="flex items-center gap-2 mb-3">
+              {% if event.when %}
+              <span style="font-size:11px;color:var(--muted)">{{ event.when }}</span>
+              {% endif %}
+              {% if event.source %}
+              <span class="chip" style="font-size:10px;padding:2px 7px">
+                {% if event.source == "hydrahd" %}HydraHD
+                {% elif event.source == "mappl" %}Mappl.tv
+                {% elif event.source == "nbamonster" %}NBAMonster
+                {% else %}{{ event.source }}{% endif %}
+              </span>
+              {% endif %}
+            </div>
+
+            <!-- Watch button(s) — all sources get ONE button; server switching happens on the watch page -->
+            <div class="flex flex-wrap gap-2 mt-auto">
+              {% if event.source == "mappl" %}
+                <a href="{% url 'live_sports_watch' %}?embed={{ event.event_id|urlencode }}&source=mappl&title={{ event.title|urlencode }}"
+                   class="watch-btn watch-btn-cyan">
+                  <svg width="10" height="10" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  Watch
+                </a>
+              {% elif event.servers %}
+                {# Build URL with all server URLs encoded so the watch page can offer switching #}
+                {% with first=event.servers.0 %}
+                <a href="{% url 'live_sports_watch' %}?embed={{ first.embed_url|urlencode }}&title={{ event.title|urlencode }}&source={{ event.source }}{% for s in event.servers %}{% if not forloop.first %}&also={{ s.embed_url|urlencode }}&also_n={{ s.number }}{% endif %}{% endfor %}"
+                   class="watch-btn {% if event.source == 'nbamonster' %}watch-btn-purple{% else %}watch-btn-red{% endif %}">
+                  <svg width="10" height="10" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  Watch{% if event.servers|length > 1 %} · {{ event.servers|length }} servers{% endif %}
+                </a>
+                {% endwith %}
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Live TV Channels Tab -->
+  {% if mappl_channels %}
+  <div id="pane-channels" {% if grouped_events %}style="display:none"{% endif %}>
+    <div class="flex items-center gap-3 mb-6">
+      <div style="width:32px;height:32px;border-radius:10px;background:rgba(93,230,255,.1);border:1px solid rgba(93,230,255,.2);display:grid;place-items:center">
+        <svg width="16" height="16" fill="none" stroke="var(--cyan)" viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/>
+        </svg>
+      </div>
+      <div>
+        <p style="font-size:14px;font-weight:700;color:var(--text)">Live TV Channels</p>
+        <p style="font-size:12px;color:var(--muted)">{{ mappl_channels|length }} channels via Mappl.tv</p>
+      </div>
+    </div>
+
+    <!-- Group channels by category -->
+    {% regroup mappl_channels by category as channel_groups %}
+    {% for cg in channel_groups %}
+    <div class="mb-8">
+      <div class="flex items-center gap-3 mb-4">
+        <span style="font-size:11px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--muted)">{{ cg.grouper|default:"General" }}</span>
+        <div style="flex:1;height:1px;background:var(--line)"></div>
+        <span class="chip" style="font-size:10px">{{ cg.list|length }}</span>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+        {% for ch in cg.list %}
+        <a href="{% url 'live_sports_watch' %}?embed={{ ch.watch_url|urlencode }}&title={{ ch.name|urlencode }}"
+           class="channel-card">
+          {% if ch.logo %}
+          <div style="width:44px;height:44px;border-radius:12px;overflow:hidden;background:rgba(255,255,255,.04);border:1px solid var(--line);display:grid;place-items:center">
+            <img src="{{ ch.logo }}" alt="{{ ch.name }}" style="width:36px;height:36px;object-fit:contain"/>
+          </div>
+          {% else %}
+          <div style="width:44px;height:44px;border-radius:12px;background:rgba(93,230,255,.08);border:1px solid rgba(93,230,255,.15);display:grid;place-items:center">
+            <svg width="20" height="20" fill="none" stroke="var(--cyan)" viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="7" width="20" height="15" rx="2"/><polyline points="17 2 12 7 7 2"/>
+            </svg>
+          </div>
+          {% endif %}
+          <span style="font-size:11px;font-weight:600;color:var(--text);line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">
+            {{ ch.name }}
+          </span>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+</div>
+
+<script>
+function showTab(tab) {
+  // Update panes
+  const panes = { events: document.getElementById('pane-events'), channels: document.getElementById('pane-channels') };
+  Object.entries(panes).forEach(([key, el]) => { if (el) el.style.display = key === tab ? '' : 'none'; });
+
+  // Update buttons
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    const id = btn.id?.replace('tab-', '');
+    btn.classList.toggle('active', id === tab);
+  });
+}
+</script>
+{% endblock %}

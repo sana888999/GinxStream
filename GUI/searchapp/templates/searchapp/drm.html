@@ -1,0 +1,233 @@
+{% extends "searchapp/base.html" %}
+{% load static %}
+
+{% block title %}DRM · Firefox server{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/ansi_up@5.2.1/ansi_up.min.js" crossorigin="anonymous"></script>
+<style>
+  #drm-log-panel {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.45;
+    background: rgba(7,10,18,.92);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    min-height: 320px;
+    max-height: min(62vh, 720px);
+    overflow: auto;
+    padding: 12px 14px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  #drm-log-panel .drm-line { margin: 0; padding: 0 0 2px 0; }
+  #drm-log-panel ansi { background: transparent; }
+</style>
+{% endblock %}
+
+{% block content %}
+{% csrf_token %}
+
+<div class="py-6 sm:py-8 lg:py-12 animate-fade-in max-w-screen-xl mx-auto px-4 sm:px-6">
+
+  <div class="flex flex-wrap items-start gap-4 mb-8">
+    <button type="button" onclick="window.history.back()" class="p-2 hover:bg-white/10 rounded-lg transition-colors flex-shrink-0 mt-1">
+      <svg class="w-5 h-5 sm:w-6 sm:h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+      </svg>
+    </button>
+    <div class="flex-1 min-w-0">
+      <h1 class="text-4xl sm:text-5xl font-black text-white leading-tight mb-2">DRM</h1>
+      <p class="text-gray-400 text-sm max-w-2xl">
+        Control the local <span class="text-cyan-400 font-semibold">Firefox extension</span> HTTP server
+        (<code class="text-xs bg-white/5 px-1.5 py-0.5 rounded">firefox/server/download_server.py</code>).
+        The extension is unchanged — it still POSTs captures to this machine on port <strong class="text-white">{{ drm_port }}</strong>.
+      </p>
+    </div>
+  </div>
+
+  <!-- Status card -->
+  <div class="glass rounded-2xl p-5 sm:p-6 mb-6 border border-white/10">
+    <div class="flex flex-wrap items-center gap-3 mb-4">
+      <span id="drm-badge-state" class="chip chip-cyan text-xs font-bold uppercase tracking-wider">Checking…</span>
+      <span id="drm-badge-managed" class="chip text-xs hidden"></span>
+      <span class="chip text-xs text-gray-400 font-mono">127.0.0.1:{{ drm_port }}</span>
+    </div>
+    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+      <div><span class="text-gray-500">PID (managed)</span> <span id="drm-pid" class="text-white font-mono ml-2">—</span></div>
+      <div><span class="text-gray-500">Save folder</span> <span id="drm-save" class="text-gray-300 ml-2 truncate block sm:inline">{{ drm_status.save_dir }}</span></div>
+    </dl>
+    <p id="drm-hint-external" class="mt-4 text-xs text-amber-300/90 hidden">
+      Something else is listening on port {{ drm_port }}. Stop that process (or close its terminal), then click <strong>Run</strong> here.
+    </p>
+    <p class="mt-4 text-xs text-gray-500">
+      <strong class="text-gray-400">NAS / LAN:</strong> expose TCP {{ drm_port }} on the host that runs this server so other PCs can POST to <code>http://&lt;host&gt;:{{ drm_port }}/add</code>.
+      Pause needs <code class="bg-white/5 px-1 rounded">pip install psutil</code> (suspend/resume the managed process).
+    </p>
+  </div>
+
+  <!-- Controls -->
+  <div class="flex flex-wrap gap-2 sm:gap-3 mb-6">
+    <button type="button" id="btn-run" class="btn-cyan text-xs sm:text-sm px-4 py-2.5">Run</button>
+    <button type="button" id="btn-stop" class="btn-ghost text-xs sm:text-sm px-4 py-2.5 border-red-500/30 text-red-400 hover:border-red-400">Stop</button>
+    <button type="button" id="btn-pause" class="btn-ghost text-xs sm:text-sm px-4 py-2.5">Pause</button>
+    <button type="button" id="btn-resume" class="btn-ghost text-xs sm:text-sm px-4 py-2.5 hidden">Resume</button>
+    <button type="button" id="btn-refresh" class="btn-ghost text-xs sm:text-sm px-4 py-2.5 border-cyan-500/30 text-cyan-400">Refresh</button>
+    <button type="button" id="btn-clear-log" class="btn-ghost text-xs sm:text-sm px-4 py-2.5 ml-auto">Clear log view</button>
+  </div>
+
+  <!-- Live log -->
+  <div class="rounded-2xl overflow-hidden border border-white/10 bg-black/40">
+    <div class="px-4 py-3 border-b border-white/10 flex flex-wrap items-center gap-3">
+      <span class="section-title">Live server output</span>
+      <label class="flex items-center gap-2 text-xs text-gray-400 cursor-pointer select-none">
+        <input type="checkbox" id="drm-autoscroll" checked class="rounded border-gray-600 bg-gray-900 text-cyan-500 focus:ring-cyan-500"/>
+        Auto-scroll
+      </label>
+    </div>
+    <div id="drm-log-panel" aria-live="polite"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const URL_STATUS = "{% url 'api_drm_status' %}";
+  const URL_LOGS = "{% url 'api_drm_logs' %}";
+  const URL_ACTION = "{% url 'api_drm_action' %}";
+
+  function getCsrfToken() {
+    const m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? decodeURIComponent(m[1]) : '';
+  }
+
+  let lastSeq = 0;
+  let ansiUp = null;
+  try {
+    ansiUp = new AnsiUp();
+    ansiUp.use_classes = false;
+  } catch (e) {
+    ansiUp = null;
+  }
+
+  const logPanel = document.getElementById('drm-log-panel');
+  const autoScroll = document.getElementById('drm-autoscroll');
+
+  function appendRawLine(text) {
+    const line = document.createElement('div');
+    line.className = 'drm-line';
+    if (ansiUp) {
+      line.innerHTML = ansiUp.ansi_to_html(text);
+    } else {
+      line.textContent = text;
+    }
+    logPanel.appendChild(line);
+    if (autoScroll.checked) {
+      logPanel.scrollTop = logPanel.scrollHeight;
+    }
+  }
+
+  async function fetchLogs() {
+    try {
+      const r = await fetch(URL_LOGS + '?after=' + lastSeq, { credentials: 'same-origin' });
+      const j = await r.json();
+      if (j.lines && j.lines.length) {
+        for (const row of j.lines) {
+          appendRawLine(row.line);
+          lastSeq = row.seq;
+        }
+      }
+      if (j.status) applyStatus(j.status);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  function applyStatus(s) {
+    const badge = document.getElementById('drm-badge-state');
+    const managedEl = document.getElementById('drm-badge-managed');
+    const pidEl = document.getElementById('drm-pid');
+    const saveEl = document.getElementById('drm-save');
+    const extHint = document.getElementById('drm-hint-external');
+    const btnPause = document.getElementById('btn-pause');
+    const btnResume = document.getElementById('btn-resume');
+
+    if (saveEl && s.save_dir) saveEl.textContent = s.save_dir;
+
+    if (s.managed && s.running) {
+      badge.textContent = s.paused ? 'Paused' : 'Running (managed)';
+      badge.className = 'chip chip-green text-xs font-bold uppercase tracking-wider';
+      badge.classList.remove('chip-cyan');
+      managedEl.textContent = 'Crypter-managed';
+      managedEl.classList.remove('hidden');
+      managedEl.className = 'chip chip-green text-xs';
+      pidEl.textContent = s.pid || '—';
+      extHint.classList.add('hidden');
+    } else if (s.external) {
+      badge.textContent = 'Running (external)';
+      badge.className = 'chip chip-purple text-xs font-bold uppercase tracking-wider';
+      managedEl.textContent = 'Not managed here';
+      managedEl.classList.remove('hidden');
+      managedEl.className = 'chip text-xs border-amber-500/40 text-amber-300';
+      pidEl.textContent = '—';
+      extHint.classList.remove('hidden');
+    } else {
+      badge.textContent = 'Stopped';
+      badge.className = 'chip chip-red text-xs font-bold uppercase tracking-wider';
+      managedEl.classList.add('hidden');
+      pidEl.textContent = '—';
+      extHint.classList.add('hidden');
+    }
+
+    if (s.paused) {
+      btnPause.classList.add('hidden');
+      btnResume.classList.remove('hidden');
+    } else {
+      btnPause.classList.remove('hidden');
+      btnResume.classList.add('hidden');
+    }
+  }
+
+  async function pollStatus() {
+    try {
+      const r = await fetch(URL_STATUS, { credentials: 'same-origin' });
+      const s = await r.json();
+      applyStatus(s);
+    } catch (e) {}
+  }
+
+  async function postAction(action) {
+    const r = await fetch(URL_ACTION, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCsrfToken(),
+      },
+      body: JSON.stringify({ action }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (j.message && typeof j.message === 'string') {
+      appendRawLine('[DRM UI] ' + j.message);
+    }
+    if (j.status) applyStatus(j.status);
+    else pollStatus();
+  }
+
+  document.getElementById('btn-run').addEventListener('click', () => postAction('run'));
+  document.getElementById('btn-stop').addEventListener('click', () => postAction('stop'));
+  document.getElementById('btn-pause').addEventListener('click', () => postAction('pause'));
+  document.getElementById('btn-resume').addEventListener('click', () => postAction('resume'));
+  document.getElementById('btn-refresh').addEventListener('click', () => postAction('refresh'));
+  document.getElementById('btn-clear-log').addEventListener('click', () => {
+    logPanel.innerHTML = '';
+    lastSeq = 0;
+    postAction('clear_logs');
+  });
+
+  pollStatus();
+  fetchLogs();
+  setInterval(fetchLogs, 650);
+  setInterval(pollStatus, 2000);
+})();
+</script>
+{% endblock %}

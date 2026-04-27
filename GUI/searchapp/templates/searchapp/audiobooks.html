@@ -1,0 +1,90 @@
+{% extends "searchapp/base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto py-8 animate-fade-in">
+
+  <div class="mb-8">
+    <h1 class="text-3xl sm:text-4xl font-black tracking-tight mb-2">Audiobooks</h1>
+    <p class="text-gray-400 text-sm">Search and download audiobooks from Mappl.tv. Session cookie required in <code class="text-gray-300">Conf/login.json → mappl.session_cookie</code>.</p>
+  </div>
+
+  <!-- Search form -->
+  <form method="GET" action="{% url 'audiobooks' %}" class="mb-10">
+    <div class="flex gap-3">
+      <input
+        type="text"
+        name="q"
+        value="{{ query|default:'' }}"
+        placeholder="Search audiobooks… (e.g. Harry Potter, David Goggins)"
+        class="flex-1 bg-neutral-900 border border-neutral-700 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors"
+        autofocus
+      />
+      <button type="submit"
+        class="px-6 py-3 bg-purple-600 hover:bg-purple-500 text-white text-sm font-semibold rounded-xl transition-colors">
+        Search
+      </button>
+    </div>
+  </form>
+
+  {% if error_msg %}
+  <div class="bg-red-500/10 border border-red-500/40 rounded-xl p-4 mb-8 text-red-300 text-sm">{{ error_msg }}</div>
+  {% endif %}
+
+  {% if query and not books %}
+  <div class="bg-neutral-900/60 border border-neutral-800 rounded-2xl p-12 text-center">
+    <p class="text-gray-400">No audiobooks found for "<strong>{{ query }}</strong>". Try a different search term.</p>
+  </div>
+  {% endif %}
+
+  {% if books %}
+  <p class="text-sm text-gray-500 mb-6">{{ books|length }} result{{ books|length|pluralize }} for "<strong class="text-gray-300">{{ query }}</strong>"</p>
+  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
+    {% for book in books %}
+    <div class="bg-neutral-900/60 border border-neutral-800 rounded-xl overflow-hidden card-hover flex flex-col">
+      {% if book.image %}
+      <img src="{{ book.image }}" alt="{{ book.title }}" class="w-full aspect-[3/4] object-cover opacity-90"/>
+      {% else %}
+      <div class="w-full aspect-[3/4] bg-neutral-800 flex items-center justify-center text-gray-600">
+        <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+        </svg>
+      </div>
+      {% endif %}
+      <div class="p-3 flex flex-col flex-1">
+        <h3 class="text-sm font-semibold text-white line-clamp-2">{{ book.title }}</h3>
+        {% if book.authors %}
+        <p class="text-xs text-gray-400 mt-1 line-clamp-1">{{ book.authors }}</p>
+        {% endif %}
+        <div class="mt-auto pt-3">
+          <form method="POST" action="{% url 'audiobook_download' %}">
+            {% csrf_token %}
+            <input type="hidden" name="book_id" value="{{ book.id }}">
+            <input type="hidden" name="slug" value="{{ book.slug }}">
+            <input type="hidden" name="title" value="{{ book.title }}">
+            <button type="submit"
+              class="w-full py-2 text-xs font-semibold bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition-colors flex items-center justify-center gap-1.5">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+              </svg>
+              Download MP3
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if not query %}
+  <div class="bg-neutral-900/40 border border-neutral-800 rounded-2xl p-10 text-center mt-4">
+    <svg class="w-14 h-14 mx-auto text-purple-600 mb-4 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+    </svg>
+    <p class="text-gray-500 text-sm">Type a title or author name above to search audiobooks.</p>
+    <p class="text-gray-600 text-xs mt-2">Audiobooks are downloaded as MP3 files into <code>Video/Audiobooks/</code></p>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

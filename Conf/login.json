@@ -1,0 +1,25 @@
+{
+    "TMDB": {
+        "api_key": "e296d301b69e1dfc1147716238093e6f"
+    },
+    "crunchyroll": {
+        "device_id": "",
+        "etp_rt": ""
+    },
+    "tubi": {
+        "email": "",
+        "password": ""
+    },
+    "mediasetinfinity": {
+        "beToken": ""
+    },
+    "discoveryeu": {
+        "st": ""
+    },
+    "hydrahd": {
+        "session_cookie": "PHPSESSID=el3p8nrlbu50ain79pvb2c3k35; cf_clearance=IT4mTSCXcU2JlDtpA_n5.WyEBd.fGaHfHn3qxwHuF0U-1776816912-1.2.1.1-qzjqzd0D5FiWW.qdKog9mna.TayMxNxbv8oxoEVehnGe9iq_CKX4Be.Rl5tppVLLRUCqtYfSW.4U1hCvDpptjgSyVQhMucGmCMgTVdDWPnfSZU4fPGfqh_ooCrPabDd5GM26w2ux1N0JpZg5dEB3cIUIRLKlWe8sU6pmoubh9Rr0zfatS7.Jiolwxm4M1r3btQy4YrctESnbCAYTryGbOmf31qoMt4exNIFDLbVtat1euYYG2QRxvkgSL89.iZZVqJ1nJ4.5mo5.JcNeL6cWsBcTX4w7U0nIX_i62ulXyUu.0LA6QP2JmL7En4DqJqHwgDMxRN8sEOM22kiRCGyCBw; guid=74049%7C1daa0eb8467bb9e4d0e04b3a764f5c91; _ga=GA1.1.702284088.1776813166; _ga_HG2JM2N8HH=GS2.1.s1776813165$o1$g1$t1776817119$j43$l0$h0; _ga_RK5DJQZQVN=GS2.1.s1776817016$o2$g1$t1776817112$j58$l0$h0"
+    },
+    "mappl": {
+        "session_cookie": ""
+    }
+}
