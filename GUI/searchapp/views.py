@@ -1270,6 +1270,24 @@ def watchlist_status(request: HttpRequest) -> JsonResponse:
 def settings_page(request: HttpRequest) -> HttpResponse:
     """Simple settings page: original titles + additional audio dubs."""
     if request.method == "POST":
+        # Download root folder (shared by all download types)
+        if request.POST.get("reset_download_root") == "1":
+            config_manager.config.set("OUTPUT", "root_path", "videos")
+            config_manager.save_config()
+            config_manager.load_all_configs()
+            messages.success(request, "Download folder reset to default: videos/")
+            return redirect("settings_page")
+
+        download_root_path = (request.POST.get("download_root_path") or "").strip()
+        if download_root_path:
+            config_manager.config.set("OUTPUT", "root_path", download_root_path)
+            config_manager.save_config()
+            config_manager.load_all_configs()
+            try:
+                Path(download_root_path).mkdir(parents=True, exist_ok=True)
+            except Exception:
+                pass
+
         prefs = {
             "use_original_titles": request.POST.get("use_original_titles") == "on",
             "additional_dubs": request.POST.getlist("additional_dubs"),
@@ -1290,6 +1308,7 @@ def settings_page(request: HttpRequest) -> HttpResponse:
         {
             "use_original_titles": prefs.get("use_original_titles", True),
             "dub_options": dub_options,
+            "download_root_path": config_manager.config.get("OUTPUT", "root_path", default="videos"),
         },
     )
 
