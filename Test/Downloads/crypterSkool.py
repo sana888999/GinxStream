@@ -15,8 +15,13 @@ ROOT_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
 sys.path.insert(0, ROOT_DIR)
 os.chdir(ROOT_DIR)
 
-# Default save folder: root dir / Downloads
-DEFAULT_SAVE_DIR = os.path.join(ROOT_DIR, "Downloads")
+# Default save folder: root dir / <config OUTPUT.root_path>
+try:
+    from StreamingCommunity.utils import config_manager
+
+    DEFAULT_SAVE_DIR = os.path.join(ROOT_DIR, config_manager.config.get("OUTPUT", "root_path") or "videos")
+except Exception:
+    DEFAULT_SAVE_DIR = os.path.join(ROOT_DIR, "videos")
 # skooltokenfetch (mitmproxy addon) writes captured MPD+license+token here
 SKOOL_CAPTURED_FILE = os.path.join(SCRIPT_DIR, "skool_captured.txt")
 SKOOL_POLL_MS = 1500  # poll capture file often so tokens are used while still valid

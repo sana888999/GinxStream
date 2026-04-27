@@ -12,6 +12,7 @@ function normalizeTypeLabel(type, title = '') {
   if (raw === 'serie' || raw === 'tv' || raw === 'series') return 'Series';
   if (raw === 'film' || raw === 'movie') return 'Movie';
   if (raw === 'audiobook') return 'Audiobook';
+  if (raw === 'downloader') return 'Downloader';
   return title && title.match(/[SE]\d+/i) ? 'Series' : 'Movie';
 }
 

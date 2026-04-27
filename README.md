@@ -90,7 +90,7 @@ Key configuration parameters in `config.json`:
 ```json
 {
     "OUTPUT": {
-        "root_path": "Video",
+        "root_path": "videos",
         "movie_folder_name": "Movie",
         "serie_folder_name": "Serie",
         "anime_folder_name": "Anime",

@@ -1,0 +1,1 @@
+const OPTION={size:{min:500,max:0},domain:[],noAddDomainTip:!1,noRecordTip:!1,lang:["nl","vi","es","pt","de","fr","it","no","fi","sv","da","el","tr","ru","hi","zh-cn","th","ko","ro","pl","zh-tw","ga","et","bg","cs","ms","sk","hu","id","fil","ja"],site:"https://fetchv.net"};

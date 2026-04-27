@@ -19,7 +19,12 @@ ROOT_DIR = os.path.abspath(os.path.join(FIREFOX_DIR, ".."))
 sys.path.insert(0, ROOT_DIR)
 os.chdir(ROOT_DIR)
 
-DEFAULT_SAVE_DIR = os.path.join(ROOT_DIR, "Downloads")
+try:
+    from StreamingCommunity.utils import config_manager
+
+    DEFAULT_SAVE_DIR = os.path.join(ROOT_DIR, config_manager.config.get("OUTPUT", "root_path") or "videos")
+except Exception:
+    DEFAULT_SAVE_DIR = os.path.join(ROOT_DIR, "videos")
 PORT = 47984
 MPD_HEADERS = {
     "Accept": "*/*",

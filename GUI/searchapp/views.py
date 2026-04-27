@@ -4,11 +4,16 @@
 import os
 import time
 import json
+import re
 import threading
 import atexit
 import signal
 import concurrent.futures
-from typing import Any, Dict, List
+import subprocess
+import urllib.parse
+import urllib.request
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 
 # External utilities
@@ -34,6 +39,7 @@ from GUI.searchapp import drm_firefox_server
 from StreamingCommunity.source.utils.tracker import download_tracker, context_tracker
 from StreamingCommunity.utils.tmdb_client import tmdb_client
 from StreamingCommunity.cli.run import execute_hooks
+from StreamingCommunity.utils import config_manager
 
 
 # Global download executor
@@ -103,6 +109,51 @@ def _prune_scheduled_downloads(_active_downloads: List[Dict[str, Any]], history:
         for download_id in to_remove:
             scheduled_downloads.pop(download_id, None)
             cancelled_scheduled_downloads.discard(download_id)
+
+
+def _format_bytes(num: Optional[float]) -> str:
+    try:
+        n = float(num or 0)
+    except Exception:
+        return "0B"
+    units = ["B", "KB", "MB", "GB", "TB"]
+    idx = 0
+    while n >= 1024 and idx < len(units) - 1:
+        n /= 1024.0
+        idx += 1
+    if idx == 0:
+        return f"{int(n)}{units[idx]}"
+    return f"{n:.2f}{units[idx]}"
+
+
+def _parse_headers_text(raw: str) -> Dict[str, str]:
+    headers: Dict[str, str] = {}
+    if not raw:
+        return headers
+    for line in str(raw).splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if ":" not in line:
+            continue
+        k, v = line.split(":", 1)
+        k = k.strip()
+        v = v.strip()
+        if not k:
+            continue
+        headers[k] = v
+    return headers
+
+
+def _safe_filename(name: str) -> str:
+    name = (name or "").strip()
+    if not name:
+        return ""
+    # keep it simple: remove path separators and control chars
+    bad = ['\\', '/', ':', '*', '?', '"', '<', '>', '|']
+    for ch in bad:
+        name = name.replace(ch, "_")
+    return re.sub(r"[\x00-\x1f]+", "_", name).strip(" ._")
 
 
 def shutdown_downloads():
@@ -670,6 +721,236 @@ def download_dashboard(request: HttpRequest) -> HttpResponse:
             "scheduled_count": len(scheduled),
         }
     )
+
+
+@require_http_methods(["GET", "POST"])
+def downloader_page(request: HttpRequest) -> HttpResponse:
+    """
+    Generic downloader (direct files + HLS/m3u8).
+    Runs in background and reports progress to the Downloads dashboard.
+    """
+    if request.method == "GET":
+        return render(request, "searchapp/downloader.html", {})
+
+    url = (request.POST.get("url") or "").strip()
+    filename_raw = (request.POST.get("filename") or "").strip()
+    output_ext_raw = (request.POST.get("output_ext") or "").strip().lstrip(".")
+    headers_raw = request.POST.get("headers") or ""
+
+    if not url:
+        messages.error(request, "Missing URL.")
+        return redirect("downloader_page")
+
+    parsed = urllib.parse.urlparse(url)
+    if not parsed.scheme or not parsed.netloc:
+        messages.error(request, "Invalid URL.")
+        return redirect("downloader_page")
+
+    is_m3u8 = parsed.path.lower().endswith(".m3u8")
+    safe_name = _safe_filename(filename_raw)
+    if not safe_name:
+        base = os.path.basename(parsed.path or "").strip()
+        base = base or "download"
+        # remove extension if present
+        safe_name = _safe_filename(os.path.splitext(base)[0]) or "download"
+
+    if output_ext_raw:
+        out_ext = _safe_filename(output_ext_raw).lower()
+    else:
+        if is_m3u8:
+            out_ext = "mp4"
+        else:
+            ext = os.path.splitext(parsed.path)[1].lstrip(".").lower()
+            out_ext = ext if ext else "bin"
+
+    title = f"{safe_name}.{out_ext}"
+    download_id = f"manual_{int(time.time())}_{hash(url) % 100000}"
+    _add_scheduled_download(download_id, title, "manual", "Downloader", None, None)
+
+    headers = _parse_headers_text(headers_raw)
+
+    root_path = config_manager.config.get("OUTPUT", "root_path")
+    output_dir = Path(root_path) / "Downloader"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = str(output_dir / f"{safe_name}.{out_ext}")
+
+    def _task():
+        try:
+            try:
+                import sys
+
+                if hasattr(sys.stdout, "reconfigure"):
+                    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+                if hasattr(sys.stderr, "reconfigure"):
+                    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+            except Exception:
+                pass
+
+            if _is_scheduled_cancelled(download_id):
+                _remove_scheduled_download(download_id)
+                return
+
+            context_tracker.download_id = download_id
+            context_tracker.site_name = "manual"
+            context_tracker.media_type = "Downloader"
+            context_tracker.is_gui = True
+
+            download_tracker.start_download(download_id, title, "manual", "Downloader", path=output_path)
+            download_tracker.update_status(download_id, "downloading")
+            _remove_scheduled_download(download_id)
+
+            if is_m3u8:
+                _download_hls_ffmpeg(download_id, url, output_path, headers=headers)
+            else:
+                _download_direct_file(download_id, url, output_path, headers=headers)
+
+            if download_tracker.is_stopped(download_id):
+                download_tracker.complete_download(download_id, success=False, error="cancelled", path=output_path)
+                return
+
+            download_tracker.complete_download(download_id, success=True, path=output_path)
+        except Exception as e:
+            error_msg = str(e) or "Unknown error"
+            try:
+                _remove_scheduled_download(download_id)
+            except Exception:
+                pass
+            try:
+                if download_id not in download_tracker.downloads:
+                    download_tracker.start_download(download_id, title, "manual", "Downloader", path=output_path)
+                download_tracker.complete_download(download_id, success=False, error=error_msg, path=output_path)
+            except Exception:
+                pass
+
+    download_executor.submit(_task)
+    messages.success(request, f"Started '{title}' — watch progress on Downloads.")
+    return redirect("download_dashboard")
+
+
+def _download_direct_file(download_id: str, url: str, output_path: str, headers: Dict[str, str]) -> None:
+    task_key = "video_downloader"
+    req = urllib.request.Request(url, headers=headers or {})
+    start = time.time()
+    last_tick = start
+    downloaded = 0
+
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        total = None
+        try:
+            total_raw = resp.headers.get("Content-Length")
+            total = int(total_raw) if total_raw else None
+        except Exception:
+            total = None
+
+        with open(output_path, "wb") as f:
+            while True:
+                if download_tracker.is_stopped(download_id):
+                    break
+
+                chunk = resp.read(1024 * 1024)
+                if not chunk:
+                    break
+                f.write(chunk)
+                downloaded += len(chunk)
+
+                now = time.time()
+                if now - last_tick >= 0.8:
+                    elapsed = max(now - start, 0.001)
+                    speed_bps = downloaded / elapsed
+                    speed = f"{_format_bytes(speed_bps)}/s"
+                    if total and total > 0:
+                        progress = (downloaded / total) * 100.0
+                        size = f"{_format_bytes(downloaded)}/{_format_bytes(total)}"
+                    else:
+                        progress = 0.0
+                        size = f"{_format_bytes(downloaded)}/?"
+                    download_tracker.update_progress(
+                        download_id,
+                        task_key,
+                        progress=progress,
+                        speed=speed,
+                        size=size,
+                        segments="",
+                        status="downloading",
+                    )
+                    last_tick = now
+
+
+def _download_hls_ffmpeg(download_id: str, url: str, output_path: str, headers: Dict[str, str]) -> None:
+    task_key = "video_downloader"
+    header_blob = ""
+    if headers:
+        # ffmpeg expects CRLF separated headers
+        header_blob = "".join([f"{k}: {v}\r\n" for k, v in headers.items() if k and v])
+
+    cmd: List[str] = ["ffmpeg", "-y"]
+    if header_blob:
+        cmd += ["-headers", header_blob]
+    cmd += ["-i", url, "-c", "copy", output_path, "-progress", "pipe:1", "-nostats"]
+
+    try:
+        proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+    except FileNotFoundError:
+        raise RuntimeError("ffmpeg not found. Install ffmpeg and ensure it's in PATH.")
+
+    download_tracker.register_process(download_id, proc)
+
+    total_size = 0
+    speed = ""
+
+    if not proc.stdout:
+        proc.wait()
+        if proc.returncode != 0:
+            raise RuntimeError(f"ffmpeg failed (exit {proc.returncode}).")
+        return
+
+    for raw_line in proc.stdout:
+        if download_tracker.is_stopped(download_id):
+            try:
+                proc.terminate()
+            except Exception:
+                pass
+            break
+
+        line = (raw_line or "").strip()
+        if not line or "=" not in line:
+            continue
+
+        k, v = line.split("=", 1)
+        k = k.strip()
+        v = v.strip()
+
+        if k == "total_size":
+            try:
+                total_size = int(v)
+            except Exception:
+                pass
+        elif k == "speed":
+            speed = v
+        elif k == "progress":
+            size = f"{_format_bytes(total_size)}/?"
+            download_tracker.update_progress(
+                download_id,
+                task_key,
+                progress=0.0,
+                speed=speed or "",
+                size=size,
+                segments="",
+                status="downloading",
+            )
+
+    proc.wait()
+    if download_tracker.is_stopped(download_id):
+        return
+    if proc.returncode != 0:
+        raise RuntimeError(f"ffmpeg failed (exit {proc.returncode}).")
 
 
 def get_downloads_json(request: HttpRequest) -> JsonResponse:

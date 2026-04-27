@@ -1,0 +1,93 @@
+{% extends "searchapp/base.html" %}
+{% load static %}
+
+{% block title %}Downloader{% endblock %}
+
+{% block content %}
+<div class="py-6 sm:py-8 lg:py-12 animate-fade-in">
+
+  <!-- Page Header -->
+  <div class="mb-8 sm:mb-12">
+    <div class="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4">
+      <button
+        onclick="window.history.back()"
+        class="p-2 hover:bg-white/10 rounded-lg transition-colors flex-shrink-0"
+      >
+        <svg class="w-5 h-5 sm:w-6 sm:h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+        </svg>
+      </button>
+      <h1 class="text-5xl font-black text-white leading-tight">
+        Downloader
+      </h1>
+    </div>
+    <div class="text-gray-400 text-sm sm:text-base max-w-3xl">
+      Paste a direct file URL (mp4/zip/etc) or an HLS playlist URL (m3u8). Downloads run in the background and show live progress in the Downloads page.
+    </div>
+  </div>
+
+  <div class="glass p-5 sm:p-6 lg:p-8">
+    <form method="post" class="space-y-5">
+      {% csrf_token %}
+
+      <div>
+        <div class="section-title mb-2">URL</div>
+        <input
+          type="url"
+          name="url"
+          required
+          placeholder="https://example.com/video.mp4  or  https://example.com/master.m3u8"
+          class="w-full px-4 py-3 rounded-xl bg-black/20 border border-white/10 focus:outline-none focus:border-cyan-400/50"
+        />
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <div class="section-title mb-2">File name (optional)</div>
+          <input
+            type="text"
+            name="filename"
+            placeholder="my_download"
+            class="w-full px-4 py-3 rounded-xl bg-black/20 border border-white/10 focus:outline-none focus:border-cyan-400/50"
+          />
+          <div class="text-xs text-gray-500 mt-1">If empty, we try to use the name from the URL.</div>
+        </div>
+        <div>
+          <div class="section-title mb-2">Output format (optional)</div>
+          <input
+            type="text"
+            name="output_ext"
+            placeholder="mp4"
+            class="w-full px-4 py-3 rounded-xl bg-black/20 border border-white/10 focus:outline-none focus:border-cyan-400/50"
+          />
+          <div class="text-xs text-gray-500 mt-1">For m3u8, default is mp4.</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-title mb-2">Headers (optional)</div>
+        <textarea
+          name="headers"
+          rows="4"
+          placeholder="User-Agent: Mozilla/5.0&#10;Referer: https://example.com/"
+          class="w-full px-4 py-3 rounded-xl bg-black/20 border border-white/10 focus:outline-none focus:border-cyan-400/50"
+        ></textarea>
+        <div class="text-xs text-gray-500 mt-1">One header per line: <span class="text-gray-400">Key: Value</span></div>
+      </div>
+
+      <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 sm:items-center">
+        <button type="submit" class="btn-cyan">
+          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/>
+          </svg>
+          Start download
+        </button>
+        <a href="{% url 'download_dashboard' %}" class="btn-ghost">
+          View Downloads
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+

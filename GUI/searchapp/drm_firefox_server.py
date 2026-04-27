@@ -14,6 +14,9 @@ from collections import deque
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+# Config (download output root)
+from StreamingCommunity.utils import config_manager
+
 # Project root = parent of GUI/
 _THIS = Path(__file__).resolve()
 PROJECT_ROOT = _THIS.parent.parent.parent
@@ -79,6 +82,7 @@ def get_status() -> Dict[str, Any]:
 
     external = port_listening and not managed
 
+    default_save = str(PROJECT_ROOT / (config_manager.config.get("OUTPUT", "root_path") or "videos"))
     return {
         "managed": managed,
         "external": external,
@@ -86,7 +90,7 @@ def get_status() -> Dict[str, Any]:
         "pid": pid,
         "paused": _paused_process,
         "port": DEFAULT_PORT,
-        "save_dir": save_dir or str(PROJECT_ROOT / "Downloads"),
+        "save_dir": save_dir or default_save,
         "script_exists": SERVER_SCRIPT.is_file(),
         "script_path": str(SERVER_SCRIPT),
         "log_line_count": len(_log_lines),
@@ -138,6 +142,8 @@ def start_server() -> Tuple[bool, str]:
         )
 
     env = os.environ.copy()
+    # Force one unified download root for DRM server.
+    env.setdefault("SKOOL_SAVE_DIR", str(PROJECT_ROOT / (config_manager.config.get("OUTPUT", "root_path") or "videos")))
     # Ensure extension POST can reach local server; cwd must be project root (same as CLI).
     try:
         proc = subprocess.Popen(
