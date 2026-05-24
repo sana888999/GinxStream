@@ -1,25 +1,25 @@
 {
   "TMDB": {
-    "api_key": ""
+    "api_key": "e296d301b69e1dfc8093e6f00000000"
   },
   "crunchyroll": {
-    "device_id": "",
-    "etp_rt": ""
+    "device_id": "00000000-0000-0000-0000-000000000000",
+    "etp_rt": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.EXAMPLE.INVALID"
   },
   "tubi": {
-    "email": "",
-    "password": ""
+    "email": "you@example.com",
+    "password": "your-password-here"
   },
   "mediasetinfinity": {
-    "beToken": ""
+    "beToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.example.invalid"
   },
   "discoveryeu": {
-    "st": ""
+    "st": "dGVzdC1zZXNzaW9uLXRva2VuLWV4YW1wbGU="
   },
   "hydrahd": {
-    "session_cookie": "PHPSESSID=...; cf_clearance=...; other=..."
+    "session_cookie": "PHPSESSID=el3p879pvb2c3k35; cf_clearance=ITcU2JlDtpA_INVALID_EXAMPLE_DO_NOT_USE; guid=74049%7C1daa0eb8467bb9e4d0e04b3a765c91; _ga=GA1.1.7024088.1776813166; _ga_HG2JM2N8HH=GS2.1.s1776813165$o1$g1$t1776817119$j43$l0$h0"
   },
   "mappl": {
-    "session_cookie": "Cookie header value from browser DevTools"
+    "session_cookie": "PHPSESSID=example00000000000; session_token=INVALID_EXAMPLE_COPY_FROM_DEVTOOLS"
   }
 }
