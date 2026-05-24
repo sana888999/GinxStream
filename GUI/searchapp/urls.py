@@ -11,7 +11,7 @@ urlpatterns = [
     path("series-metadata/", views.series_metadata, name="series_metadata"),
     path("series-detail/", views.series_detail, name="series_detail"),
 
-    # DRM — Firefox Skool extension HTTP server control + logs
+    # DRM — SanaGinx Firefox extension HTTP server control + logs
     path("drm/", views.drm_page, name="drm_page"),
     path("api/drm/status/", views.api_drm_status, name="api_drm_status"),
     path("api/drm/logs/", views.api_drm_logs, name="api_drm_logs"),

@@ -128,8 +128,66 @@ class DASH_Downloader:
         if keys:
             self.decryption_keys = keys
             return True
-        self.error = "Failed to fetch decryption keys"
+
+        # Same KID often works for both; if one path fails (e.g. remote Widevine down) try the other
+        # when the MPD advertises both (helps when only a local .wvd or .prd is available).
+        available = self.drm_info.get("available_drm_types") or []
+        alt = None
+        if drm_type == DRMSystem.WIDEVINE and DRMSystem.PLAYREADY in available:
+            alt = DRMSystem.PLAYREADY
+        elif drm_type == DRMSystem.PLAYREADY and DRMSystem.WIDEVINE in available:
+            alt = DRMSystem.WIDEVINE
+        if alt:
+            console.print(
+                f"[yellow]No keys from primary DRM ({drm_type}). Retrying with [cyan]{alt}[/cyan] …"
+            )
+            drm_info_alt = dict(self.drm_info)
+            drm_info_alt["selected_drm_type"] = alt
+            if self.download_id:
+                download_tracker.update_status(self.download_id, f"Fetching {alt} keys …")
+            keys2 = self._get_keys_for_drm_info(
+                drm_info_alt, self.license_url, self.license_headers, self.key
+            )
+            if keys2:
+                self.drm_info["selected_drm_type"] = alt
+                self.drm_preference = alt
+                if self.media_downloader is not None:
+                    self.media_downloader.drm_type = alt
+                self.decryption_keys = keys2
+                return True
+
+        self._set_key_fetch_error_message()
         return False
+
+    def _set_key_fetch_error_message(self) -> None:
+        """Human-readable error for SanaGinx / extension download server when both DRM paths fail."""
+        import os
+
+        from StreamingCommunity.setup.binary_paths import binary_paths
+        from StreamingCommunity.setup.device_install import workspace_root
+
+        bdir = binary_paths.get_binary_directory()
+        wr = workspace_root()
+        proj_bin = os.path.join(wr, "binary")
+        wvd = get_wvd_path()
+        prd = get_prd_path()
+        missing = []
+        if not wvd:
+            missing.append("device.wvd (Widevine)")
+        if not prd:
+            missing.append("device.prd (PlayReady)")
+        hint = (
+            f"Add CDM files under {bdir} or {proj_bin}, "
+            "or set env STREAMINGCOMMUNITY_WVD_PATH / STREAMINGCOMMUNITY_PRD_PATH. "
+            "If you rely on remote CDM only, Conf/remote_cdm.json hosts must be reachable from this PC."
+        )
+        if missing:
+            self.error = "DRM keys unavailable — missing local " + ", ".join(missing) + ". " + hint
+        else:
+            self.error = (
+                "DRM keys unavailable — license/token rejected or CDM could not derive keys. "
+                + hint
+            )
 
     def _get_keys_for_drm_info(self, drm_info: dict, license_url: str, license_headers: dict, key: str) -> list:
         """Dispatch Widevine/PlayReady key fetch for a given drm_info block. Returns key list or []."""
@@ -464,7 +522,7 @@ class DASH_Downloader:
         # Fetch decryption keys if DRM protected
         if self.drm_info and self.drm_info['available_drm_types']:
             if not self._fetch_decryption_keys():
-                logging.error(f"Failed to fetch decryption keys: {self.error}")
+                logging.error(self.error)
                 if self.download_id:
                     download_tracker.complete_download(self.download_id, success=False, error=self.error)
                 return None, True

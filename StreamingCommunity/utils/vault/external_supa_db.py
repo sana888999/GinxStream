@@ -1,5 +1,6 @@
 # 29.01.26
 
+import socket
 from typing import List, Optional
 
 
@@ -12,6 +13,34 @@ from StreamingCommunity.utils.config import config_manager
 
 # Variable
 console = Console()
+
+# After DNS/network failure, skip further Supabase calls this process (avoids red spam each download).
+_supabase_network_unreachable: bool = False
+
+
+def _is_dns_or_network_error(exc: BaseException) -> bool:
+    """True if failure is DNS / no route (not HTTP 4xx/5xx)."""
+    chain: list[BaseException] = []
+    e: Optional[BaseException] = exc
+    for _ in range(6):
+        if e is None:
+            break
+        chain.append(e)
+        e = getattr(e, "__cause__", None) or getattr(e, "__context__", None)
+    for item in chain:
+        if isinstance(item, socket.gaierror):
+            return True
+        if isinstance(item, OSError):
+            en = getattr(item, "errno", None)
+            if en in (11001, 11002):  # Windows: WSAHOST_NOT_FOUND / WSATRY_AGAIN
+                return True
+    msg = " ".join(str(c) for c in chain).lower()
+    return (
+        "getaddrinfo" in msg
+        or "name or service not known" in msg
+        or "temporary failure in name resolution" in msg
+        or "network is unreachable" in msg
+    )
 
 
 class ExternalSupaDBVault:
@@ -29,12 +58,23 @@ class ExternalSupaDBVault:
 
     def _post(self, endpoint: str, payload: dict) -> Optional[dict]:
         """Internal helper: POST to an endpoint, return parsed JSON or None on error."""
+        global _supabase_network_unreachable
+        if _supabase_network_unreachable:
+            return None
         url = f"{self.base_url}/{endpoint}"
         try:
             response = create_client(headers=self.headers).post(url, json=payload)
             response.raise_for_status()
             return response.json()
         except Exception as e:
+            if _is_dns_or_network_error(e):
+                _supabase_network_unreachable = True
+                console.print(
+                    "[yellow]Supabase vault unreachable (DNS/network). "
+                    "Skipping remote key lookup for this session. "
+                    "Fix internet/DNS or set [cyan]external_supa_db.enabled[/cyan] to [cyan]false[/cyan] in [cyan]Conf/remote_cdm.json[/cyan]."
+                )
+                return None
             console.print(f"[red]Supabase request error ({endpoint}): {e}")
             return None
 
@@ -170,6 +210,8 @@ class ExternalSupaDBVault:
         return bool(result and result.get('success', False))
 
 
-# Initialize
-is_supa_external_db_valid = not (config_manager.remote_cdm.get('external_supa_db', 'url') is None or config_manager.remote_cdm.get('external_supa_db', 'url') == "")
+# Initialize (set external_supa_db.enabled to false in Conf/remote_cdm.json to disable completely)
+_supa_url = (config_manager.remote_cdm.get("external_supa_db", "url", default="") or "").strip()
+_supa_enabled = config_manager.remote_cdm.get_bool("external_supa_db", "enabled", default=True)
+is_supa_external_db_valid = bool(_supa_url) and _supa_enabled
 obj_externalSupaDbVault = ExternalSupaDBVault() if is_supa_external_db_valid else None

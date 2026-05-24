@@ -193,7 +193,7 @@ class ISM_Downloader:
         # Fetch decryption keys if DRM protected
         if self.drm_info and self.drm_info['available_drm_types']:
             if not self._fetch_decryption_keys():
-                logging.error(f"Failed to fetch decryption keys: {self.error}")
+                logging.error(self.error)
                 if self.download_id:
                     download_tracker.complete_download(self.download_id, success=False, error=self.error)
                 return None, True

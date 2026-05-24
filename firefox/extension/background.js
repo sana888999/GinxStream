@@ -1,25 +1,19 @@
 "use strict";
 
-const PAIR_WINDOW_MS = 120000; // 2 min
-const STORAGE_KEYS = { capture: "skool_capture", lastLicense: "skool_last_license" };
-let lastPageTitle = null; // from main frame (e.g. "Editing Skool Walkthrough - Breakdown")
+importScripts("config.js");
 
-function deriveMpdFromSegment(url) {
-  try {
-    const u = new URL(url);
-    const path = u.pathname.replace(/\/$/, "");
-    if (!path.includes("/assets/")) return null;
-    if (!path.includes("video_") && !path.includes("audio_") && !path.includes("seg-") && !url.includes(".mpd"))
-      return null;
-    const parts = path.split("/");
-    const i = parts.indexOf("assets");
-    if (i === -1 || i + 1 >= parts.length) return null;
-    const assetId = parts[i + 1];
-    if (!assetId || assetId.length < 4) return null;
-    return `${u.protocol}//${u.host}/assets/${assetId}/master.mpd`;
-  } catch (e) {
-    return null;
-  }
+const CC = globalThis.SanaGinxConfig;
+const PAIR_WINDOW_MS = 120000;
+const { STORAGE } = CC;
+
+let lastPageTitle = null;
+let activeConfig = null;
+let licenseListener = null;
+let manifestListener = null;
+
+async function ensureConfig() {
+  if (!activeConfig) activeConfig = await CC.loadConfig();
+  return activeConfig;
 }
 
 function getNameFromMpdUrl(url) {
@@ -32,65 +26,146 @@ function getNameFromMpdUrl(url) {
   }
 }
 
-// License request: capture URL and pallycon-customdata-v2
-browser.webRequest.onBeforeSendHeaders.addListener(
-  (details) => {
+function tryPairCapture(mpdUrl, licenseRecord, name, config) {
+  const cap = config.capture;
+  const token =
+    licenseRecord.token ||
+    CC.readTokenFromHeaders(licenseRecord.licenseHeaders, cap.licenseHeader);
+  const hasAuth =
+    (token && String(token).trim()) ||
+    (licenseRecord.licenseHeaders && Object.keys(licenseRecord.licenseHeaders).length > 0);
+  if (!mpdUrl || !licenseRecord || !licenseRecord.url || !hasAuth) return false;
+  if (Date.now() - licenseRecord.time > PAIR_WINDOW_MS) return false;
+
+  const pageH = CC.buildPageHeaders(config, licenseRecord.tabUrl || "");
+  const licenseHeaders = Object.assign(
+    {},
+    config.capture.defaultLicenseHeaders || { "Content-Type": "application/octet-stream" },
+    pageH,
+    licenseRecord.licenseHeaders || {}
+  );
+  if (cap.licenseHeader && token) licenseHeaders[cap.licenseHeader] = token;
+
+  const capture = {
+    mpd_url: mpdUrl,
+    license_url: licenseRecord.url,
+    token,
+    license_headers: licenseHeaders,
+    mpd_headers: Object.assign({}, pageH, config.capture.defaultMpdHeaders || {}),
+    name: name || getNameFromMpdUrl(mpdUrl),
+    time: Date.now(),
+  };
+  browser.storage.local.set({ [STORAGE.capture]: capture });
+  browser.storage.local.remove([STORAGE.lastLicense, STORAGE.lastMpd]);
+  return true;
+}
+
+function pairLicenseWithWaitingMpd(license, config) {
+  browser.storage.local.get([STORAGE.lastMpd]).then((data) => {
+    const m = data[STORAGE.lastMpd];
+    if (!m || !m.url || Date.now() - m.time > PAIR_WINDOW_MS) return;
+    tryPairCapture(m.url, license, m.name, config);
+  });
+}
+
+function registerWebRequestListeners(config) {
+  if (licenseListener) {
+    browser.webRequest.onBeforeSendHeaders.removeListener(licenseListener);
+    licenseListener = null;
+  }
+  if (manifestListener) {
+    browser.webRequest.onBeforeRequest.removeListener(manifestListener);
+    manifestListener = null;
+  }
+
+  const cap = config.capture;
+  const licenseHosts = cap.licenseWebRequestHosts || ["*://*/*"];
+  const manifestHosts = cap.manifestWebRequestHosts || ["*://*/*"];
+  const licenseHeaderName = cap.licenseHeader || "";
+
+  licenseListener = (details) => {
     const url = details.url || "";
-    if (!url.toLowerCase().includes("licensemanager.do") || !url.toLowerCase().includes("pallycon")) return;
+    if (!CC.isLicenseUrl(url, cap)) return;
+    const licenseHeaders = {};
     let token = "";
     for (const h of details.requestHeaders || []) {
-      if (h.name.toLowerCase() === "pallycon-customdata-v2") {
+      licenseHeaders[h.name] = h.value;
+      if (licenseHeaderName && h.name.toLowerCase() === licenseHeaderName.toLowerCase()) {
         token = (h.value || "").trim();
-        break;
       }
     }
-    if (!token) return;
-    const license = { url, token, time: Date.now() };
-    browser.storage.local.set({ [STORAGE_KEYS.lastLicense]: license });
-  },
-  { urls: ["*://*pallycon*/*licenseManager*"] },
-  ["requestHeaders"]
-);
+    if (!token && licenseHeaderName && !(Object.keys(licenseHeaders).length > 1)) return;
+    const license = {
+      url,
+      token,
+      licenseHeaders,
+      tabUrl: details.initiator || "",
+      time: Date.now(),
+    };
+    browser.storage.local.set({ [STORAGE.lastLicense]: license });
+    pairLicenseWithWaitingMpd(license, config);
+  };
 
-// MPD or segment: derive MPD, pair with last license if present
-browser.webRequest.onBeforeRequest.addListener(
-  (details) => {
+  manifestListener = (details) => {
     if (details.method !== "GET") return;
     const url = details.url || "";
-    let mpdUrl = url.includes(".mpd") ? url : deriveMpdFromSegment(url);
+    const mpdUrl = CC.resolveManifestUrl(url, cap);
     if (!mpdUrl) return;
-    // Only tagmango CDN (not api-prod-new)
-    if (!url.includes("tagmango")) return;
-    if (url.includes("api-prod-new")) return;
 
-    browser.storage.local.get([STORAGE_KEYS.lastLicense]).then((data) => {
-      const last = data[STORAGE_KEYS.lastLicense];
-      if (!last || Date.now() - last.time > PAIR_WINDOW_MS) return;
+    browser.storage.local.get([STORAGE.lastLicense]).then((data) => {
+      const last = data[STORAGE.lastLicense];
       const name = getNameFromMpdUrl(mpdUrl);
-      const capture = {
-        mpd_url: mpdUrl,
-        license_url: last.url,
-        token: last.token,
-        name,
+      if (last && Date.now() - last.time <= PAIR_WINDOW_MS) {
+        tryPairCapture(mpdUrl, last, name, config);
+      } else {
+        browser.storage.local.set({
+          [STORAGE.lastMpd]: { url: mpdUrl, name, time: Date.now() },
+        });
+      }
+    });
+  };
+
+  browser.webRequest.onBeforeSendHeaders.addListener(licenseListener, { urls: licenseHosts }, [
+    "requestHeaders",
+  ]);
+  browser.webRequest.onBeforeRequest.addListener(manifestListener, { urls: manifestHosts });
+}
+
+async function init() {
+  await CC.migrateLegacyStorage();
+  activeConfig = await CC.loadConfig();
+  registerWebRequestListeners(activeConfig);
+}
+
+browser.storage.onChanged.addListener((changes, area) => {
+  if (area !== "local" || !changes[CC.CONFIG_KEY]) return;
+  CC.loadConfig().then((cfg) => {
+    activeConfig = cfg;
+    registerWebRequestListeners(cfg);
+  });
+});
+
+init();
+
+browser.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg.type === "GET_CONFIG") {
+    ensureConfig().then((cfg) => sendResponse(cfg));
+    return true;
+  }
+  if (msg.type === "CAPTURE_LICENSE_FROM_PAGE") {
+    ensureConfig().then((config) => {
+      const license = {
+        url: msg.licenseUrl,
+        token: msg.token || "",
+        licenseHeaders: msg.licenseHeaders || {},
+        tabUrl: sender.tab && sender.tab.url ? sender.tab.url : "",
         time: Date.now(),
       };
-      browser.storage.local.set({
-        [STORAGE_KEYS.capture]: capture,
-        [STORAGE_KEYS.lastLicense]: null,
-      });
-      browser.storage.local.remove(STORAGE_KEYS.lastLicense);
+      browser.storage.local.set({ [STORAGE.lastLicense]: license });
+      pairLicenseWithWaitingMpd(license, config);
+      sendResponse(true);
     });
-  },
-  { urls: ["*://*tagmango*/*"] }
-);
-
-// Capture from page-injected script (reliable: page's fetch() has the token)
-browser.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  if (msg.type === "CAPTURE_LICENSE_FROM_PAGE") {
-    const license = { url: msg.licenseUrl, token: msg.token, time: Date.now() };
-    browser.storage.local.set({ [STORAGE_KEYS.lastLicense]: license });
-    sendResponse(true);
-    return false;
+    return true;
   }
   if (msg.type === "CAPTURE_PAGE_TITLE") {
     if (msg.title && typeof msg.title === "string") lastPageTitle = msg.title.trim().substring(0, 80);
@@ -98,26 +173,32 @@ browser.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return false;
   }
   if (msg.type === "CAPTURE_MPD_FROM_PAGE") {
-    const mpdUrl = msg.mpdUrl;
-    const name = (lastPageTitle || msg.name || getNameFromMpdUrl(mpdUrl)).replace(/[<>:"/\\|?*]/g, "_");
-    browser.storage.local.get([STORAGE_KEYS.lastLicense]).then((data) => {
-      const last = data[STORAGE_KEYS.lastLicense];
-      if (last && Date.now() - last.time <= PAIR_WINDOW_MS) {
-        const capture = { mpd_url: mpdUrl, license_url: last.url, token: last.token, name, time: Date.now() };
-        browser.storage.local.set({ [STORAGE_KEYS.capture]: capture });
-        browser.storage.local.remove(STORAGE_KEYS.lastLicense);
-      }
+    ensureConfig().then((config) => {
+      const mpdUrl = msg.mpdUrl;
+      const name = (lastPageTitle || msg.name || getNameFromMpdUrl(mpdUrl)).replace(/[<>:"/\\|?*]/g, "_");
+      browser.storage.local.get([STORAGE.lastLicense]).then((data) => {
+        const last = data[STORAGE.lastLicense];
+        if (last && Date.now() - last.time <= PAIR_WINDOW_MS) {
+          tryPairCapture(mpdUrl, last, name, config);
+        } else {
+          browser.storage.local.set({
+            [STORAGE.lastMpd]: { url: mpdUrl, name, time: Date.now() },
+          });
+        }
+        sendResponse(true);
+      });
     });
-    sendResponse(true);
-    return false;
+    return true;
   }
   if (msg.type === "GET_CAPTURE") {
-    browser.storage.local.get([STORAGE_KEYS.capture]).then((data) => sendResponse(data[STORAGE_KEYS.capture] || null));
+    browser.storage.local.get([STORAGE.capture]).then((data) => sendResponse(data[STORAGE.capture] || null));
     return true;
   }
   if (msg.type === "CLEAR_CAPTURE") {
     lastPageTitle = null;
-    browser.storage.local.remove([STORAGE_KEYS.capture, STORAGE_KEYS.lastLicense]).then(() => sendResponse(true));
+    browser.storage.local
+      .remove([STORAGE.capture, STORAGE.lastLicense, STORAGE.lastMpd])
+      .then(() => sendResponse(true));
     return true;
   }
   return false;

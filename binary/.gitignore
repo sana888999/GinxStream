@@ -1,0 +1,3 @@
+# Keep this folder; place device.wvd / device.prd here (local only — do not commit CDM files)
+*
+!.gitignore

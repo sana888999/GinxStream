@@ -15,7 +15,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.prompt import Prompt
 
-from StreamingCommunity.upload.version import __author__, __title__
+from StreamingCommunity.upload.version import __author__, __title__, __github_repo__
 
 
 # Variable
@@ -229,7 +229,17 @@ def download_and_extract_latest_commit():
     Download and extract the latest commit from a GitHub repository.
     """
     try:
-        api_url = f'https://api.github.com/repos/{__author__}/{__title__}/commits?per_page=1'
+        import os as _os
+        repo = (
+            _os.environ.get('SANAGINX_GITHUB_REPO')
+            or _os.environ.get('CRYPTER_GITHUB_REPO')
+            or __github_repo__
+            or ''
+        ).strip()
+        if not repo:
+            console.print('[yellow]Set SANAGINX_GITHUB_REPO=user/repo to pull updates from GitHub.')
+            return
+        api_url = f'https://api.github.com/repos/{repo}/commits?per_page=1'
         console.log("[green]Requesting latest commit from GitHub repository...")
 
         headers = {
@@ -245,7 +255,7 @@ def download_and_extract_latest_commit():
 
             print_commit_info(commit_info)
 
-            zipball_url = f'https://github.com/{__author__}/{__title__}/archive/{commit_sha}.zip'
+            zipball_url = f'https://github.com/{repo}/archive/{commit_sha}.zip'
             console.log("[green]Downloading latest commit zip file...")
 
             response = httpx.get(zipball_url, follow_redirects=True, timeout=max_timeout)

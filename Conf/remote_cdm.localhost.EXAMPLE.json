@@ -1,0 +1,26 @@
+{
+  "config": {
+    "delay_after_request": 5,
+    "create_local_db": false
+  },
+  "external_supa_db": {
+    "enabled": false,
+    "url": ""
+  },
+  "remote_cdm": {
+    "widevine": {
+      "device_type": "ANDROID",
+      "system_id": 22590,
+      "security_level": 3,
+      "host": "http://127.0.0.1:8787",
+      "secret": "REPLACE_WITH_SERVE_SECRET",
+      "device_name": "REPLACE_WITH_DEVICE_ALIAS_FROM_SERVE"
+    },
+    "playready": {
+      "device_name": "public",
+      "security_level": 3000,
+      "host": "https://cdrm-project.com/remotecdm/playready",
+      "secret": "CDRM"
+    }
+  }
+}

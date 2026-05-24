@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>SanaGinx Capture — Options</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 16px; font-size: 13px; line-height: 1.45; }
+    h1 { font-size: 18px; margin: 0 0 8px; }
+    label { display: block; margin-top: 12px; font-weight: 600; }
+    input[type=text], textarea { width: 100%; box-sizing: border-box; margin-top: 4px; padding: 8px; font-family: ui-monospace, monospace; font-size: 12px; }
+    textarea { min-height: 280px; }
+    .row { display: flex; gap: 8px; margin-top: 16px; }
+    button { padding: 8px 14px; cursor: pointer; }
+    .ok { color: #0a0; }
+    .hint { color: #666; font-size: 12px; margin-top: 8px; }
+    a { color: #06c; }
+  </style>
+</head>
+<body>
+  <h1>SanaGinx DRM Capture — Rules</h1>
+  <p class="hint">Configure how the extension detects license requests and DASH manifests. See the repo <code>README.md</code> (Firefox extension section).</p>
+
+  <label for="serverUrl">Download server URL</label>
+  <input type="text" id="serverUrl" placeholder="http://127.0.0.1:47984">
+
+  <label for="origin">Default Origin (optional)</label>
+  <input type="text" id="origin" placeholder="https://your-site.com">
+
+  <label for="referer">Default Referer (optional)</label>
+  <input type="text" id="referer" placeholder="https://your-site.com/">
+
+  <label for="json">Capture rules (JSON)</label>
+  <textarea id="json" spellcheck="false"></textarea>
+
+  <div class="row">
+    <button type="button" id="save">Save</button>
+    <button type="button" id="reset">Reset to defaults</button>
+    <button type="button" id="presetPallycon">Load Pallycon + DASH preset</button>
+  </div>
+  <p id="status" class="hint"></p>
+  <script src="config.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

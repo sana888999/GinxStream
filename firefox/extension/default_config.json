@@ -1,0 +1,23 @@
+{
+  "serverUrl": "http://127.0.0.1:47984",
+  "pageHeaders": {
+    "Origin": "",
+    "Referer": "",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:148.0) Gecko/20100101 Firefox/148.0"
+  },
+  "capture": {
+    "licenseUrlIncludes": ["license"],
+    "licenseHeader": "pallycon-customdata-v2",
+    "licenseWebRequestHosts": ["*://*/*"],
+    "manifestWebRequestHosts": ["*://*/*"],
+    "mpdUrlIncludes": [".mpd"],
+    "segmentUrlIncludes": ["/assets/"],
+    "segmentFileHints": ["video_", "audio_", "seg-", ".mpd"],
+    "segmentHostExcludes": [],
+    "deriveMpd": {
+      "enabled": true,
+      "pathMarker": "/assets/",
+      "masterFile": "master.mpd"
+    }
+  }
+}

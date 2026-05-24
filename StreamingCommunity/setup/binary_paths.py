@@ -10,12 +10,15 @@ import httpx
 from rich.console import Console
 
 
-# Internal utilities
-from StreamingCommunity.utils.http_client import get_headers
-
-
 # Variable
 console = Console()
+
+
+def _get_request_headers():
+    """Lazy import avoids circular import with StreamingCommunity.utils on startup."""
+    from StreamingCommunity.utils.http_client import get_headers
+
+    return get_headers()
 
 
 class BinaryPaths:
@@ -23,7 +26,10 @@ class BinaryPaths:
         self.system = self._detect_system()
         self.arch = self._detect_arch()
         self.home_dir = os.path.expanduser('~')
-        self.github_repo = "https://raw.githubusercontent.com/Arrowar/SC_Binary/main"
+        # Optional: raw base URL for binary_paths.json (e.g. your fork). Empty = local binaries only.
+        self.github_repo = (
+            os.environ.get("SANAGINX_BINARY_RAW") or os.environ.get("CRYPTER_BINARY_RAW") or ""
+        ).rstrip("/") or None
         self.paths_cache = None
     
     def _detect_system(self) -> str:
@@ -67,9 +73,11 @@ class BinaryPaths:
         if self.paths_cache is not None:
             return self.paths_cache
         
+        if not self.github_repo:
+            return {}
         try:
             url = f"{self.github_repo}/binary_paths.json"
-            response = httpx.get(url, timeout=10, headers=get_headers())
+            response = httpx.get(url, timeout=10, headers=_get_request_headers())
             response.raise_for_status()
             self.paths_cache = response.json()
             return self.paths_cache
@@ -121,7 +129,7 @@ class BinaryPaths:
                 os.makedirs(os.path.dirname(local_path), exist_ok=True)
                 
                 try:
-                    response = httpx.get(url, timeout=60, headers=get_headers())
+                    response = httpx.get(url, timeout=60, headers=_get_request_headers())
                     response.raise_for_status()
                     
                     with open(local_path, 'wb') as f:

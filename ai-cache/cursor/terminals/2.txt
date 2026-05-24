@@ -1,6 +1,0 @@
----
-pid: 28180
-cwd: |
-  C:\Users\RTX\Desktop\StreamingCommunity-main
----
-PS C:\Users\RTX\Desktop\StreamingCommunity-main>

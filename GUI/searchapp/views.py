@@ -1581,7 +1581,7 @@ def audiobook_download(request: HttpRequest) -> HttpResponse:
     return redirect("download_dashboard")
 
 
-# --- DRM: Firefox Skool download server (same as `python firefox/server/download_server.py`) ---
+# --- DRM: SanaGinx Firefox download server (python firefox/server/download_server.py) ---
 
 
 @ensure_csrf_cookie

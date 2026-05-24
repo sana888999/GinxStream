@@ -1,0 +1,25 @@
+{
+  "TMDB": {
+    "api_key": ""
+  },
+  "crunchyroll": {
+    "device_id": "",
+    "etp_rt": ""
+  },
+  "tubi": {
+    "email": "",
+    "password": ""
+  },
+  "mediasetinfinity": {
+    "beToken": ""
+  },
+  "discoveryeu": {
+    "st": ""
+  },
+  "hydrahd": {
+    "session_cookie": "PHPSESSID=...; cf_clearance=...; other=..."
+  },
+  "mappl": {
+    "session_cookie": "Cookie header value from browser DevTools"
+  }
+}

@@ -48,9 +48,7 @@ setup(
     description="Download content from streaming platforms",
     long_description=read_readme(),
     long_description_content_type="text/markdown",
-    author="Arrowar",
-    url="https://github.com/Arrowar/StreamingCommunity",
-    
+    author="SanaGinx",
     packages=find_packages(
         exclude=["tests", "tests.*", "docs", "docs.*", "GUI", "GUI.*", "Test", "Test.*"]
     ),
@@ -93,9 +91,4 @@ setup(
         "Programming Language :: Python :: 3.12",
         "Operating System :: OS Independent",
     ],
-    
-    project_urls={
-        "Bug Reports": "https://github.com/Arrowar/StreamingCommunity/issues",
-        "Source": "https://github.com/Arrowar/StreamingCommunity",
-    }
 )

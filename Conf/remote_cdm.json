@@ -1,9 +1,10 @@
 {
     "config": {
-        "delay_after_request": 5,
+        "delay_after_request": 0,
         "create_local_db": false
     },
     "external_supa_db": {
+        "enabled": false,
         "url": "https://hxutwmklahyeisuvmnli.supabase.co"
     },
     "remote_cdm": {

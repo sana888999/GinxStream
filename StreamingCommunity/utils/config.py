@@ -4,8 +4,9 @@ import os
 import re
 import sys
 import json
+import shutil
 import logging
-from typing import Any, List, Dict
+from typing import Any, List, Dict, Optional
 
 
 # External library
@@ -21,10 +22,22 @@ DOMAINS_FILENAME = 'domains.json'
 GITHUB_DOMAINS_PATH = '.github/script/domains.json'
 REMOTE_CDM_PATH = 'remote_cdm.json'
 
-CONFIG_DOWNLOAD_URL = 'https://raw.githubusercontent.com/Arrowar/StreamingCommunity/refs/heads/main/Conf/config.json'
-CONFIG_LOGIN_DOWNLOAD_URL = 'https://raw.githubusercontent.com/Arrowar/StreamingCommunity/refs/heads/main/Conf/login.json'
-DOMAINS_DOWNLOAD_URL = 'https://raw.githubusercontent.com/Arrowar/SC_Domains/refs/heads/main/domains.json'
-REMOTE_CDM_DOWNLOAD_URL = 'https://raw.githubusercontent.com/Arrowar/StreamingCommunity/refs/heads/main/Conf/remote_cdm.json'
+def _env_raw_base() -> str:
+    """Optional raw GitHub base, e.g. https://raw.githubusercontent.com/you/SanaGinx/main"""
+    return (os.environ.get("SANAGINX_RAW_BASE") or os.environ.get("CRYPTER_RAW_BASE") or "").rstrip("/")
+
+
+def _remote_conf_url(filename: str) -> Optional[str]:
+    base = _env_raw_base()
+    if not base:
+        return None
+    return f"{base}/Conf/{filename}"
+
+
+def _remote_domains_url() -> Optional[str]:
+    return (
+        os.environ.get("SANAGINX_DOMAINS_URL") or os.environ.get("CRYPTER_DOMAINS_URL") or ""
+    ).strip() or None
 
 
 class ConfigAccessor:
@@ -219,12 +232,27 @@ class ConfigManager:
         self._load_site_data()
         self._load_remote_cdm()
 
+    def _seed_from_example(self, dest_path: str, example_names: List[str]) -> bool:
+        """Copy a bundled example into Conf/ when the real file is missing."""
+        for name in example_names:
+            src = os.path.join(self.conf_path, name)
+            if os.path.isfile(src):
+                shutil.copy2(src, dest_path)
+                console.print(f"[green]Created {os.path.basename(dest_path)} from {name}")
+                return True
+        return False
+
     def _load_config(self) -> None:
         """Load the main configuration file."""
         if not os.path.exists(self.config_file_path):
             console.print(f"[red]WARNING: Configuration file not found: {self.config_file_path}")
-            console.print("[yellow]Downloading from repository...")
-            self._download_file(CONFIG_DOWNLOAD_URL, self.config_file_path, "config.json")
+            url = _remote_conf_url(CONFIG_FILENAME)
+            if url:
+                console.print("[yellow]Downloading config from SANAGINX_RAW_BASE...")
+                self._download_file(url, self.config_file_path, CONFIG_FILENAME)
+            else:
+                console.print("[yellow]Add Conf/config.json from this repo (or set SANAGINX_RAW_BASE to sync remotely).")
+                sys.exit(1)
         
         try:
             with open(self.config_file_path, 'r') as f:
@@ -246,14 +274,21 @@ class ConfigManager:
         """Load the login configuration file."""
         if not os.path.exists(self.login_file_path):
             console.print(f"[yellow]WARNING: Login file not found: {self.login_file_path}")
-            console.print("[yellow]Downloading from repository...")
-            try:
-                self._download_file(CONFIG_LOGIN_DOWNLOAD_URL, self.login_file_path, "login.json")
-            except Exception as e:
-                console.print(f"[yellow]Could not download login.json: {str(e)}")
-                console.print("[yellow]Creating empty login configuration...")
-                self._login_data.clear()
-                return
+            if self._seed_from_example(self.login_file_path, ["login.json.example"]):
+                pass
+            else:
+                url = _remote_conf_url(LOGIN_FILENAME)
+                if url:
+                    try:
+                        self._download_file(url, self.login_file_path, LOGIN_FILENAME)
+                    except Exception as e:
+                        console.print(f"[yellow]Could not download login.json: {str(e)}")
+                        self._login_data.clear()
+                        return
+                else:
+                    console.print("[yellow]Copy Conf/login.json.example to Conf/login.json")
+                    self._login_data.clear()
+                    return
         
         try:
             with open(self.login_file_path, 'r') as f:
@@ -272,14 +307,24 @@ class ConfigManager:
         """Load the login configuration file."""
         if not os.path.exists(self.remote_cdm_path):
             console.print(f"[yellow]WARNING: Remote cdm file not found: {self.remote_cdm_path}")
-            console.print("[yellow]Downloading from repository...")
-            try:
-                self._download_file(REMOTE_CDM_DOWNLOAD_URL, self.remote_cdm_path, "remote_cdm.json")
-            except Exception as e:
-                console.print(f"[yellow]Could not download remote_cdm.json: {str(e)}")
-                console.print("[yellow]Creating empty remote cdm configuration...")
-                self._remote_cdm_data.clear()
-                return
+            if self._seed_from_example(
+                self.remote_cdm_path,
+                ["remote_cdm.localhost.EXAMPLE.json"],
+            ):
+                pass
+            else:
+                url = _remote_conf_url(REMOTE_CDM_PATH)
+                if url:
+                    try:
+                        self._download_file(url, self.remote_cdm_path, REMOTE_CDM_PATH)
+                    except Exception as e:
+                        console.print(f"[yellow]Could not download remote_cdm.json: {str(e)}")
+                        self._remote_cdm_data.clear()
+                        return
+                else:
+                    console.print("[yellow]Add Conf/remote_cdm.json from this repo.")
+                    self._remote_cdm_data.clear()
+                    return
         
         try:
             with open(self.remote_cdm_path, 'r') as f:
@@ -327,9 +372,14 @@ class ConfigManager:
                 logging.warning(f"Failed to precache {section}.{key}: {e}")
     
     def _handle_config_error(self) -> None:
-        """Handle configuration errors by downloading the reference version."""
-        console.print("[yellow]Attempting to retrieve reference configuration...")
-        self._download_file(CONFIG_DOWNLOAD_URL, self.config_file_path, "config.json")
+        """Handle configuration errors by re-fetching or exiting."""
+        url = _remote_conf_url(CONFIG_FILENAME)
+        if url:
+            console.print("[yellow]Attempting to retrieve reference configuration...")
+            self._download_file(url, self.config_file_path, CONFIG_FILENAME)
+        else:
+            console.print("[red]Fix or restore Conf/config.json (invalid JSON).")
+            sys.exit(1)
         
         # Reload the configuration
         try:
@@ -396,12 +446,19 @@ class ConfigManager:
             console.print(f"[yellow]custom_domains.json load error: {e}")
 
     def _load_site_data_online(self) -> None:
-        """Load site data from GitHub and update local domains.json file."""
+        """Load site data from a remote JSON URL (SANAGINX_DOMAINS_URL)."""
+        url = _remote_domains_url()
+        if not url:
+            console.print(
+                "[yellow]fetch_domain_online is true but SANAGINX_DOMAINS_URL is not set; using local domains."
+            )
+            self._load_site_data_from_file()
+            return
         headers = {
             "User-Agent": "Mozilla/5.0"
         }
         try:
-            response = httpx.get(DOMAINS_DOWNLOAD_URL, timeout=8.0, headers=headers)
+            response = httpx.get(url, timeout=8.0, headers=headers)
 
             if response.status_code == 200:
                 self._domains_data.clear()

@@ -12,7 +12,7 @@ from rich.console import Console
 
 
 # Internal utilities
-from .version import __version__ as source_code_version, __author__, __title__
+from .version import __version__ as source_code_version, __author__, __title__, __github_repo__
 from StreamingCommunity.utils import config_manager
 from StreamingCommunity.utils.http_client import get_userAgent
 from StreamingCommunity.setup import get_is_binary_installation
@@ -27,10 +27,24 @@ else:
 console = Console()
 
 
+def _github_repo_slug():
+    import os
+    slug = (
+        os.environ.get("SANAGINX_GITHUB_REPO")
+        or os.environ.get("CRYPTER_GITHUB_REPO")
+        or __github_repo__
+        or ""
+    ).strip()
+    return slug or None
+
+
 def fetch_github_releases():
     """Fetch releases data from GitHub API (sync)"""
+    repo = _github_repo_slug()
+    if not repo:
+        return []
     response = httpx.get(
-        f"https://api.github.com/repos/{__author__}/{__title__}/releases",
+        f"https://api.github.com/repos/{repo}/releases",
         headers={'user-agent': get_userAgent()},
         timeout=config_manager.config.get_int("REQUESTS", "timeout"),
         follow_redirects=True
@@ -60,8 +74,14 @@ def auto_update():
         return False
     
     try:
+        if not _github_repo_slug():
+            console.print("[yellow]Auto-update disabled (set SANAGINX_GITHUB_REPO).")
+            return False
         console.print("[cyan]Checking for updates...")
         releases = fetch_github_releases()
+        if not releases:
+            console.print("[yellow]No releases found.")
+            return False
         latest = releases[0]
         latest_version = latest.get('name', '').replace('v', '').replace('.', '')
         
@@ -141,6 +161,13 @@ def auto_update():
 
 def update():
     """Check for updates on GitHub and display relevant information."""
+    repo = _github_repo_slug()
+    if not repo:
+        console.print(
+            "[cyan]GitHub release check disabled. Set SANAGINX_GITHUB_REPO=user/repo "
+            "or __github_repo__ in version.py when you publish."
+        )
+        return
     try:
         response_releases = fetch_github_releases()
     except Exception as e:
@@ -178,7 +205,8 @@ def update():
 
     if str(current_version).lower().replace("v.", "").replace("v", "") != str(last_version).lower().replace("v.", "").replace("v", ""):
         console.print(f"\n[red]New version available: [yellow]{last_version}")
-        console.print(f"[green]Download it from: [yellow]https://github.com/Arrowar/StreamingCommunity/releases/tag/v{last_version}")
+        if repo:
+            console.print(f"[green]Releases: [yellow]https://github.com/{repo}/releases")
         
         if get_execution_mode() == "installer":
             console.print("[cyan]Run with [yellow]-UP [cyan]to auto-update")

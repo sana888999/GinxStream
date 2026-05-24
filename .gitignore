@@ -66,3 +66,18 @@ console.log
 docker-compose.yml
 end.py
 config_mio.json
+
+# Dev capture dumps / AI tooling (not for release)
+editingskool/
+creators-club/
+context/
+ai-cache/
+.cursor/
+
+# Local secrets
+Conf/login.json
+Test/Downloads/Conf/login.json
+
+# Local CDM secrets
+binary/*.wvd
+binary/*.prd

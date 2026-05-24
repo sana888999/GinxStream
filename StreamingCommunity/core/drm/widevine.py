@@ -52,6 +52,11 @@ def _pallycon_license_candidates(raw: bytes):
 
 # External libraries
 from rich.console import Console
+
+try:
+    import requests as _requests
+except ImportError:
+    _requests = None
 from pywidevine.cdm import Cdm
 from pywidevine.device import Device
 from pywidevine.device import DeviceTypes
@@ -67,6 +72,41 @@ from StreamingCommunity.source.utils.object import KeysManager
 
 # Variable
 console = Console()
+
+
+def _print_remote_cdm_network_hint(exc: Exception) -> None:
+    """Explain common remote CDM failures (timeouts, DNS, firewall)."""
+    if _requests is None:
+        return
+    if not isinstance(
+        exc,
+        (
+            _requests.exceptions.ConnectTimeout,
+            _requests.exceptions.ConnectionError,
+            _requests.exceptions.ReadTimeout,
+            _requests.exceptions.Timeout,
+        ),
+    ):
+        # urllib3 / httpx sometimes wrap the same problem
+        msg = str(exc).lower()
+        if "timeout" not in msg and "connection" not in msg and "max retries" not in msg:
+            return
+    console.print(
+        "[yellow]"
+        "Remote Widevine CDM could not be reached (network timeout or blocked). "
+        "Try: different network/VPN, disable aggressive firewall/ad-block for the CDM host, "
+        "or point [cyan]remote_cdm.widevine.host[/cyan] in [cyan]Conf/remote_cdm.json[/cyan] "
+        "to your own pywidevine-serve instance. "
+        "If you use a local [cyan]device.wvd[/cyan] in the binaries folder, the app prefers it over remote CDM."
+        "[/yellow]"
+    )
+    try:
+        from StreamingCommunity.setup.binary_paths import binary_paths
+
+        bdir = binary_paths.get_binary_directory()
+        console.print(f"[dim]Local Widevine file location: [cyan]{bdir}[/cyan] — place [cyan]device.wvd[/cyan] there, then restart the download.[/dim]")
+    except Exception:
+        pass
 
 
 def _is_session_expired_error(exc: Exception) -> bool:
@@ -138,9 +178,13 @@ def _get_widevine_keys(pssh_list: list[dict], license_url: str, cdm_device_path:
             else:
                 console.print(f"[red]Unsupported remote CDM device type: {dt}")
                 return None
-            cdm = RemoteCdm(**cdm_remote_api)
+            from StreamingCommunity.core.drm.remote_cdm_http import remote_cdm_init_timeouts
+
+            with remote_cdm_init_timeouts():
+                cdm = RemoteCdm(**cdm_remote_api)
         except Exception as e:
             console.print(f"[red]Error initializing remote CDM: {e}")
+            _print_remote_cdm_network_hint(e)
             return None
 
     use_remote = cdm_device_path is None

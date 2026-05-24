@@ -1,0 +1,15 @@
+{
+  "licenseUrlIncludes": ["pallycon", "licensemanager"],
+  "licenseHeader": "pallycon-customdata-v2",
+  "licenseWebRequestHosts": ["*://*.pallycon.com/*", "*://pallycon.com/*"],
+  "manifestWebRequestHosts": ["*://*/*"],
+  "mpdUrlIncludes": [".mpd"],
+  "segmentUrlIncludes": ["/assets/"],
+  "segmentFileHints": ["video_", "audio_", "seg-", ".mpd"],
+  "segmentHostExcludes": ["api-prod-new"],
+  "deriveMpd": {
+    "enabled": true,
+    "pathMarker": "/assets/",
+    "masterFile": "master.mpd"
+  }
+}

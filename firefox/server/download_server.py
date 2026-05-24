@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 """
-Local server for the Skool Video Downloader Firefox extension.
-Receives POST /add with { mpd_url, license_url, token, name? } and runs the DASH download
-using the same logic as crypterSkool. Run from project root (StreamingCommunity-main).
+SanaGinx local DRM download server.
+
+Receives POST /add with JSON from the Firefox extension:
+  mpd_url, license_url, token (optional if license_headers set),
+  license_headers, mpd_headers, name (optional)
+
+Run from project root: python firefox/server/download_server.py
 """
 import json
 import os
@@ -11,8 +15,8 @@ import subprocess
 import sys
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from typing import Dict, Optional
 
-# Project root (StreamingCommunity-main) = parent of firefox/
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 FIREFOX_DIR = os.path.dirname(SCRIPT_DIR)
 ROOT_DIR = os.path.abspath(os.path.join(FIREFOX_DIR, ".."))
@@ -25,23 +29,56 @@ try:
     DEFAULT_SAVE_DIR = os.path.join(ROOT_DIR, config_manager.config.get("OUTPUT", "root_path") or "videos")
 except Exception:
     DEFAULT_SAVE_DIR = os.path.join(ROOT_DIR, "videos")
+
 PORT = 47984
-MPD_HEADERS = {
-    "Accept": "*/*",
-    "Origin": "https://learn.editingskool.com",
-    "Referer": "https://learn.editingskool.com/",
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:148.0) Gecko/20100101 Firefox/148.0",
-}
+_download_lock = threading.Lock()
+
+_DEFAULT_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:148.0) Gecko/20100101 Firefox/148.0"
 
 
-def build_license_headers(token):
-    return {
+def _save_dir():
+    return (
+        os.environ.get("SANAGINX_SAVE_DIR")
+        or os.environ.get("CRYPTER_SAVE_DIR")
+        or os.environ.get("SKOOL_SAVE_DIR")
+        or DEFAULT_SAVE_DIR
+    )
+
+
+def _normalize_headers(raw: Optional[Dict]) -> dict:
+    if not raw or not isinstance(raw, dict):
+        return {}
+    out = {}
+    for k, v in raw.items():
+        if k and v is not None:
+            out[str(k)] = str(v)
+    return out
+
+
+def build_license_headers(token: str, license_headers: Optional[Dict]) -> dict:
+    if license_headers:
+        h = _normalize_headers(license_headers)
+        if "User-Agent" not in h and "user-agent" not in {x.lower() for x in h}:
+            h["User-Agent"] = _DEFAULT_UA
+        return h
+    headers = {
         "Content-Type": "application/octet-stream",
-        "Origin": "https://learn.editingskool.com",
-        "Referer": "https://learn.editingskool.com/",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:148.0) Gecko/20100101 Firefox/148.0",
-        "pallycon-customdata-v2": (token or "").strip(),
+        "User-Agent": _DEFAULT_UA,
     }
+    if token:
+        headers["pallycon-customdata-v2"] = (token or "").strip()
+    return headers
+
+
+def build_mpd_headers(mpd_headers: Optional[Dict]) -> dict:
+    h = _normalize_headers(mpd_headers)
+    if not h:
+        h = {"Accept": "*/*", "User-Agent": _DEFAULT_UA}
+    elif "User-Agent" not in h and "user-agent" not in {x.lower() for x in h}:
+        h["User-Agent"] = _DEFAULT_UA
+    if "Accept" not in h:
+        h["Accept"] = "*/*"
+    return h
 
 
 def next_default_number(save_dir, ext="mp4"):
@@ -61,6 +98,7 @@ def next_default_number(save_dir, ext="mp4"):
 def get_ffmpeg_path():
     try:
         from StreamingCommunity.setup import get_ffmpeg_path as _g
+
         return _g()
     except Exception:
         return "ffmpeg"
@@ -87,11 +125,11 @@ def mkv_to_mp4(mkv_path, mp4_path):
     return False
 
 
-def run_download(mpd_url, license_url, token, name, save_dir):
-    """Run one DASH download. Returns (success, result_path or error_message)."""
+def run_download(mpd_url, license_url, token, license_headers, mpd_headers, name, save_dir):
     try:
         from StreamingCommunity.utils import config_manager
         from StreamingCommunity.core.downloader import DASH_Downloader
+
         ext = config_manager.config.get("PROCESS", "extension")
     except Exception as e:
         return False, str(e)
@@ -99,16 +137,19 @@ def run_download(mpd_url, license_url, token, name, save_dir):
     if not name:
         name = str(next_default_number(save_dir, "mp4"))
     name = re.sub(r'[<>:"/\\|?*]', "_", name)[:80].strip() or "video"
-    base_path = os.path.join(save_dir, name)
-    out_path = base_path + "." + ext
+    out_path = os.path.join(save_dir, name) + "." + ext
+
+    lic_h = build_license_headers(token, license_headers)
+    mpd_h = build_mpd_headers(mpd_headers)
+    if not lic_h and not token:
+        return False, "Missing license_headers or token"
 
     try:
-        license_headers = build_license_headers(token)
         dash = DASH_Downloader(
             mpd_url=mpd_url,
-            mpd_headers=MPD_HEADERS,
+            mpd_headers=mpd_h,
             license_url=license_url,
-            license_headers=license_headers,
+            license_headers=lic_h,
             output_path=out_path,
             drm_preference="widevine",
             ensure_audio=True,
@@ -119,8 +160,33 @@ def run_download(mpd_url, license_url, token, name, save_dir):
 
     if not result_path:
         err = getattr(dash, "error", None) or "Download failed or stopped."
-        if err and ("decryption" in err.lower() or "key" in err.lower() or "license" in err.lower()):
-            err = err + " Token may be expired or wrong video. Click Refresh token in the extension, play this video again, then Download."
+        el = err.lower()
+        _looks_like_network_or_cdm = any(
+            x in el
+            for x in (
+                "timeout",
+                "timed out",
+                "cdrm-project",
+                "remote cdm",
+                "initializing remote",
+                "max retries",
+                "connection",
+                "unreachable",
+                "getaddrinfo",
+                "httpsconnectionpool",
+                "connecttimeout",
+                "failed to fetch decryption",
+                "supabase",
+                "extraction methods failed",
+                "no keys",
+            )
+        )
+        if (
+            err
+            and not _looks_like_network_or_cdm
+            and ("decryption" in el or "key" in el or "license" in el)
+        ):
+            err = err + " License may be expired. Clear capture, play the video again, then Download."
         return False, err
 
     if result_path.lower().endswith(".mkv"):
@@ -139,7 +205,6 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def send_cors(self, origin=None):
-        # Echo Origin so Firefox extension (moz-extension://...) gets a valid CORS response
         if origin:
             self.send_header("Access-Control-Allow-Origin", origin)
         else:
@@ -158,37 +223,55 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as e:
             self.send_json(400, {"success": False, "error": "Invalid JSON: " + str(e)})
             return
+
         mpd_url = (data.get("mpd_url") or "").strip()
         license_url = (data.get("license_url") or "").strip()
         token = (data.get("token") or "").strip()
+        license_headers = data.get("license_headers")
+        mpd_headers = data.get("mpd_headers")
         name = (data.get("name") or "").strip() or None
+
         if not mpd_url or ".mpd" not in mpd_url.lower():
             self.send_json(400, {"success": False, "error": "Missing or invalid mpd_url"})
             return
         if not license_url:
             self.send_json(400, {"success": False, "error": "Missing license_url"})
             return
-        if not token:
-            self.send_json(400, {"success": False, "error": "Missing token (pallycon-customdata-v2)"})
+        if not token and not (license_headers and isinstance(license_headers, dict)):
+            self.send_json(400, {"success": False, "error": "Missing token or license_headers"})
             return
 
-        save_dir = os.environ.get("SKOOL_SAVE_DIR", DEFAULT_SAVE_DIR)
+        save_dir = _save_dir()
         os.makedirs(save_dir, exist_ok=True)
 
-        # Run download in background so we respond immediately (browser would timeout otherwise)
+        if not _download_lock.acquire(blocking=False):
+            self.send_json(
+                409,
+                {
+                    "success": False,
+                    "error": "A download is already running. Wait for it to finish.",
+                },
+            )
+            return
+
         def run():
-            ok, result = run_download(mpd_url, license_url, token, name, save_dir)
-            if ok:
-                print("[SkoolServer] Done: " + result)
-            else:
-                print("[SkoolServer] Failed: " + str(result))
+            try:
+                ok, result = run_download(
+                    mpd_url, license_url, token, license_headers, mpd_headers, name, save_dir
+                )
+                if ok:
+                    print("[SanaGinx] Done:", result)
+                else:
+                    print("[SanaGinx] Failed:", result)
+            finally:
+                _download_lock.release()
 
         threading.Thread(target=run, daemon=True).start()
-        self.send_json(200, {"success": True, "message": "Download started. Check save folder: " + save_dir})
+        self.send_json(200, {"success": True, "message": "Download started. Save folder: " + save_dir})
 
     def do_GET(self):
-        if self.path == "/status" or self.path == "/":
-            self.send_json(200, {"status": "ok", "save_dir": os.environ.get("SKOOL_SAVE_DIR", DEFAULT_SAVE_DIR)})
+        if self.path in ("/status", "/"):
+            self.send_json(200, {"status": "ok", "save_dir": _save_dir()})
             return
         self.send_error(404)
 
@@ -201,18 +284,39 @@ class Handler(BaseHTTPRequestHandler):
         try:
             self.wfile.write(json.dumps(obj).encode("utf-8"))
         except (ConnectionAbortedError, BrokenPipeError, OSError):
-            pass  # Client closed connection (e.g. timeout); don't crash
+            pass
 
     def log_message(self, format, *args):
-        print("[SkoolServer]", format % args)
+        print("[SanaGinx]", format % args)
 
 
 def main():
-    save_dir = os.environ.get("SKOOL_SAVE_DIR", DEFAULT_SAVE_DIR)
-    print("Skool Video Downloader – local server")
+    save_dir = _save_dir()
+    print("SanaGinx DRM download server")
     print("Save folder:", save_dir)
+    try:
+        from StreamingCommunity.setup import get_wvd_path
+        from StreamingCommunity.setup.binary_paths import binary_paths
+        from StreamingCommunity.setup.device_install import workspace_root
+
+        wvd = get_wvd_path()
+        bdir = binary_paths.get_binary_directory()
+        wr = workspace_root()
+        proj_bin = os.path.join(wr, "binary")
+        if not wvd:
+            print(
+                "CDM: no device.wvd — add to",
+                proj_bin,
+                "or",
+                bdir,
+                "(see README.md — CDM setup)",
+            )
+        else:
+            print("CDM: local Widevine:", wvd)
+    except Exception:
+        pass
     print("Listening on http://127.0.0.1:%s" % PORT)
-    print("POST /add with JSON: mpd_url, license_url, token, name (optional)")
+    print("POST /add  JSON: mpd_url, license_url, license_headers | token, mpd_headers?, name?")
     server = HTTPServer(("127.0.0.1", PORT), Handler)
     try:
         server.serve_forever()

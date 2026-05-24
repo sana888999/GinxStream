@@ -18,6 +18,23 @@ from StreamingCommunity.source.utils.object import KeysManager
 console = Console()
 
 
+def _looks_like_remote_cdm_network_error(exc: Exception) -> bool:
+    msg = str(exc).lower()
+    return any(
+        s in msg
+        for s in (
+            "timeout",
+            "connection",
+            "max retries",
+            "refused",
+            "unreachable",
+            "nodename nor servname",
+            "name or service not known",
+            "temporary failure",
+        )
+    )
+
+
 def get_playready_keys(pssh_list: list[dict], license_url: str, cdm_device_path: str = None, cdm_remote_api: list[str] = None, headers: dict = None, key: str = None):
     """
     Extract PlayReady CONTENT keys (KID/KEY) from a license.
@@ -72,9 +89,25 @@ def _get_playready_keys_local_cdm(pssh_list: list[dict], license_url: str, cdm_d
     else:
         console.print("[green]Using remote CDM.")
         try:
-            cdm = RemoteCdm(**cdm_remote_api)
+            from StreamingCommunity.core.drm.remote_cdm_http import remote_cdm_init_timeouts
+
+            with remote_cdm_init_timeouts():
+                cdm = RemoteCdm(**cdm_remote_api)
         except Exception as e:
             console.print(f"[red]Error initializing remote CDM: {e}")
+            if _looks_like_remote_cdm_network_error(e):
+                try:
+                    from StreamingCommunity.setup.binary_paths import binary_paths
+
+                    bdir = binary_paths.get_binary_directory()
+                    console.print(
+                        "[yellow]Remote PlayReady CDM unreachable. "
+                        "Use another network, fix firewall, set [cyan]remote_cdm.playready.host[/cyan] to your own server, "
+                        "or place [cyan]device.prd[/cyan] in:[/yellow]"
+                    )
+                    console.print(f"[cyan]{bdir}[/cyan]")
+                except Exception:
+                    pass
             return None
 
     # Open CDM session

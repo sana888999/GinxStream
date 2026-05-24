@@ -1,444 +1,311 @@
 <div align="center">
 
-[![PyPI Version](https://img.shields.io/pypi/v/streamingcommunity?logo=pypi&logoColor=white&labelColor=2d3748&color=3182ce&style=for-the-badge)](https://pypi.org/project/streamingcommunity/)
-[![Sponsor](https://img.shields.io/badge/💖_Sponsor-ea4aaa?style=for-the-badge&logo=github-sponsors&logoColor=white&labelColor=2d3748)](https://ko-fi.com/arrowar)
+# SanaGinx
 
-[![Windows](https://img.shields.io/badge/🪟_Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white&labelColor=2d3748)](https://github.com/Arrowar/StreamingCommunity/releases/latest/download/StreamingCommunity_win_2025_x64.exe)
-[![macOS](https://img.shields.io/badge/🍎_macOS-000000?style=for-the-badge&logo=apple&logoColor=white&labelColor=2d3748)](https://github.com/Arrowar/StreamingCommunity/releases/latest/download/StreamingCommunity_mac_15_x64)
-[![Linux](https://img.shields.io/badge/🐧_Linux_latest-FCC624?style=for-the-badge&logo=linux&logoColor=black&labelColor=2d3748)](https://github.com/Arrowar/StreamingCommunity/releases/latest/download/StreamingCommunity_linux_24_04_x64)
+**Web GUI + universal Firefox DRM capture + StreamingCommunity download core**
 
-*⚡ **Quick Start:** `pip install StreamingCommunity && StreamingCommunity`*
+[![Version](https://img.shields.io/badge/version-1.0.8-5DE6FF?style=for-the-badge)](StreamingCommunity/upload/version.py)
+[![Python](https://img.shields.io/badge/python-3.8+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![Firefox](https://img.shields.io/badge/Firefox-extension-FF7139?style=for-the-badge&logo=firefoxbrowser&logoColor=white)](firefox/extension/manifest.json)
+
+Capture **DASH MPD + license** from any site you configure, send them to a local Python server, and download with Widevine / PlayReady key extraction.
 
 </div>
 
-## 📖 Table of Contents
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [DNS Configuration](#dns-configuration)
-- [Downloaders](#downloaders)
-- [Configuration](#configuration)
-- [Usage Examples](#usage-examples)
-- [Global Search](#global-search)
-- [Advanced Features](#advanced-features)
-- [Docker](#docker)
-- [TO DO](#todo)
-- [Related Projects](#related-projects)
+---
+
+## Table of contents
+
+- [What you get](#what-you-get)
+- [Requirements](#requirements)
+- [Install](#install)
+- [Firefox extension (load & configure)](#firefox-extension-load--configure)
+- [Run the download server](#run-the-download-server)
+- [CDM setup (DRM keys)](#cdm-setup-drm-keys)
+- [Web GUI](#web-gui)
+- [Cookies & login (`Conf/login.json`)](#cookies--login-confloginjson)
+- [Other config files](#other-config-files)
+- [Project layout](#project-layout)
+- [Publish / backup checklist](#publish--backup-checklist)
+- [Troubleshooting](#troubleshooting)
 
 ---
 
-## Installation
+## What you get
 
-### Manual Clone
-```bash
-git clone https://github.com/Arrowar/StreamingCommunity.git
-cd StreamingCommunity
+| Piece | Role |
+|--------|------|
+| **SanaGinx web GUI** | Search and download from supported streaming sites (English UI) |
+| **Firefox extension** | Configurable capture of MPD + license URL + headers on **any** site |
+| **Download server** | `firefox/server/download_server.py` — receives capture and runs `DASH_Downloader` |
+| **Core** | StreamingCommunity engine (HLS, DASH, DRM, mux, etc.) |
+
+---
+
+## Requirements
+
+- **Windows / macOS / Linux** with Python **3.8+**
+- **Firefox** (for the capture extension)
+- **Widevine CDM** — `binary/device.wvd` *or* a working remote CDM in `Conf/remote_cdm.json`
+- For site logins in the GUI: cookies / tokens in `Conf/login.json` (see below)
+
+---
+
+## Install
+
+From the project root:
+
+```powershell
+git clone <your-repo-url> SanaGinx
+cd SanaGinx
 pip install -r requirements.txt
-python test_run.py
+pip install -r GUI/requirements.txt
 ```
 
-### Update
-```bash
-python update.py
-```
+Optional: verify DRM setup before your first download:
 
-### Additional Documentation
-- 📝 [Login Guide](.github/doc/login.md) - Authentication for supported services
-
----
-
-## Quick Start
-
-```bash
-# If installed via PyPI
-StreamingCommunity
-
-# If cloned manually
-python test_run.py
+```powershell
+python tools/verify_cdm_setup.py
 ```
 
 ---
 
-## DNS Configuration
+## Firefox extension (load & configure)
 
-**Required for optimal functionality and reliability.**
+### 1. Load the extension (temporary)
 
-Use one of these DNS providers:
+Firefox does not ship this add-on from AMO yet — load it as a **temporary** extension while developing:
 
-- **Cloudflare DNS**: `1.1.1.1` - [Setup guide](https://developers.cloudflare.com/1.1.1.1/setup/)
-- **Quad9 DNS**: `9.9.9.9` - [Setup guide](https://quad9.net/)
+1. Open Firefox and go to **`about:debugging`**
+2. Click **This Firefox** (left sidebar)
+3. Click **Load Temporary Add-on…**
+4. Select **`firefox/extension/manifest.json`** in this repo
 
----
+> Temporary add-ons are removed when Firefox closes. Reload the same way after each browser restart (or use Firefox Developer Edition / `about:config` → `xpinstall.signatures.required` only if you know what you are doing for unsigned permanent installs).
 
-## Downloaders
+### 2. Open extension settings
 
-| Type | Description | Example |
-|------|-------------|---------|
-| **HLS** | HTTP Live Streaming (m3u8) | [View example](./Test/Downloads/HLS.py) |
-| **MP4** | Direct MP4 download | [View example](./Test/Downloads/MP4.py) |
-| **DASH** | MPEG-DASH with DRM bypass* | [View example](./Test/Downloads/DASH.py) |
-| **MEGA** | MEGA.nz downloads | [View example](./Test/Downloads/MEGA.py) |
+Any of these work:
 
-**\*DASH with DRM bypass:** Requires a valid L3 CDM (Content Decryption Module). This project does not provide or facilitate obtaining CDMs. Users must ensure compliance with applicable laws.
+- Toolbar puzzle icon → **SanaGinx DRM Capture** → **Preferences**
+- Right-click the extension icon → **Manage Extension** → **Preferences**
+- Extension popup → **Configure capture rules**
 
----
+### 3. What to configure for your site
 
-## Configuration
+| Setting | Purpose |
+|---------|---------|
+| **Download server URL** | Default `http://127.0.0.1:47984` — must match the running Python server |
+| **Origin / Referer** | Sent with MPD and license requests (match your player page if the CDN checks them) |
+| **Capture rules (JSON)** | Tells the extension which URLs are licenses, segments, and `.mpd` files |
 
-Key configuration parameters in `config.json`:
+**Example preset (Pallycon + DASH):** in Options click **Load Pallycon + DASH preset**, or copy from:
 
-### Output Directories
-```json
-{
-    "OUTPUT": {
-        "root_path": "videos",
-        "movie_folder_name": "Movie",
-        "serie_folder_name": "Serie",
-        "anime_folder_name": "Anime",
-        "episode_format": "%(episode_name) S%(season)E%(episode)",
-        "season_format": "S%(season)",
-        "add_siteName": false
-    }
-}
-```
+`firefox/extension/examples/pallycon-dash-preset.json`
 
-- **`root_path`**: Base directory where videos are saved
-  - Windows: `C:\\MyLibrary\\Folder` or `\\\\MyServer\\Share`
-  - Linux/MacOS: `Desktop/MyLibrary/Folder`
-
-- **`movie_folder_name`**: Subfolder name for movies (default: `"Movie"`)
-- **`serie_folder_name`**: Subfolder name for TV series (default: `"Serie"`)
-- **`anime_folder_name`**: Subfolder name for anime (default: `"Anime"`)
-
-- **`episode_format`**: Episode filename template
-  - `%(tv_name)`: TV Show name
-  - `%(season)`: Season number (zero-padded)
-  - `%(episode)`: Episode number (zero-padded)
-  - `%(episode_name)`: Episode title
-  - Example: `"%(episode_name) S%(season)E%(episode)"` → `"Pilot S01E01"`
-
-- **`season_format`**: Season folder name template (default: `"S%(season)"`)
-  - `%(season)`: Season number (zero-padded)
-  - Example: `"S%(season)"` → `"S01"` or `"Stagione %(season)"` → `"Stagione 1"`
-
-- **`add_siteName`**: Append site name to root path (default: `false`)
-
-### Download Settings
-```json
-{
-    "DOWNLOAD": {
-        "thread_count": 12,
-        "retry_count": 40,
-        "concurrent_download": true,
-        "max_speed": "30MB",
-        "select_video": "res=.*1080.*:for=best",
-        "select_audio": "lang='ita|Ita':for=all",
-        "select_subtitle": "lang='ita|eng|Ita|Eng':for=all",
-        "cleanup_tmp_folder": true
-    }
-}
-```
-
-#### Performance Settings
-- **`auto_select`**: Automatically select streams based on filters (default: `true`). When `false`, enables interactive stream selection mode where user can manually choose video/audio/subtitle tracks before download.
-- **`skip_download`**: Skip the download step and process existing files (default: `false`)
-- **`thread_count`**: Number of parallel download threads (default: `12`)
-- **`retry_count`**: Maximum retry attempts for failed segments (default: `40`)
-- **`concurrent_download`**: Download video and audio simultaneously (default: `true`)
-- **`max_speed`**: Speed limit per stream (e.g., `"30MB"`, `"10MB"`)
-- **`cleanup_tmp_folder`**: Remove temporary files after download (default: `true`)
-
-#### Stream Selection
-
-**- `select_video`**
-```
-OPTIONS: id=REGEX:lang=REGEX:name=REGEX:codecs=REGEX:res=REGEX:frame=REGEX:
-         segsMin=number:segsMax=number:ch=REGEX:range=REGEX:url=REGEX:
-         plistDurMin=hms:plistDurMax=hms:bwMin=int:bwMax=int:role=string:for=FOR
-
-    for=FOR: Selection type - best (default), best[number], worst[number], all
-```
-```json
-"select_video": "for=best"                                // Select best video
-"select_video": "res=3840*:codecs=hvc1:for=best"          // Select 4K HEVC video
-"select_video": "res=1080:for=best"                       // Select 1080p video
-"select_video": "plistDurMin=1h20m30s:for=best"           // Duration > 1h 20m 30s
-"select_video": "role=main:for=best"                      // Main video role
-"select_video": "bwMin=800:bwMax=1000:for=best"           // Bandwidth 800-1000 Kbps
-```
-
-**- `select_audio`** 
-```json
-"select_audio": "for=all"                                 // Select all audio tracks
-"select_audio": "lang=en:for=best"                        // Select best English audio
-"select_audio": "lang='ja|en':for=best2"                  // Best 2 tracks (Japanese or English)
-"select_audio": "lang='ita|Ita':for=all"                  // All Italian audio tracks
-"select_audio": "role=main:for=best"                      // Main audio role
-```
-
-**- `select_subtitle`** 
-```json
-"select_subtitle": "for=all"                              // Select all subtitles
-"select_subtitle": "name=English:for=all"                 // All subtitles containing "English"
-"select_subtitle": "lang='ita|eng|Ita|Eng':for=all"       // Italian and English subtitles
-"select_subtitle": "lang=en:for=best"                     // Best English subtitle
-"select_subtitle": "false"                                // Disable subtitle download
-```
-
-### Processing Settings
-```json
-{
-    "PROCESS": {
-        "generate_nfo": false,
-        "use_gpu": false,
-        "param_video": ["-c:v", "libx265", "-crf", "28", "-preset", "medium"],
-        "param_audio": ["-c:a", "libopus", "-b:a", "128k"],
-        "param_final": ["-c", "copy"],
-        "audio_order": ["ita", "eng"],
-        "subtitle_order": ["ita", "eng"],
-        "merge_audio": true,
-        "merge_subtitle": true,
-        "subtitle_disposition": true,
-        "subtitle_disposition_language": ["forced-ita", "ita-forced"],
-        "extension": "mkv"
-    }
-}
-```
-
-- **`generate_nfo`**: Generate .nfo metadata file alongside the video (default: `false`)
-- **`use_gpu`**: Enable hardware acceleration (default: `false`)
-- **`param_video`**: FFmpeg video encoding parameters
-  - Example: `["-c:v", "libx265", "-crf", "28", "-preset", "medium"]` (H.265/HEVC encoding)
-- **`param_audio`**: FFmpeg audio encoding parameters
-  - Example: `["-c:a", "libopus", "-b:a", "128k"]` (Opus audio at 128kbps)
-- **`param_final`**: Final FFmpeg parameters (default: `["-c", "copy"]` for stream copy)
-- **`audio_order`**: List of strings to order audio tracks (e.g., `["ita", "eng"]`)
-- **`subtitle_order`**: List of strings to order subtitle tracks (e.g., `["ita", "eng"]`)
-- **`merge_audio`**: Merge all audio tracks into a single output file (default: `true`)
-- **`merge_subtitle`**: Merge all subtitle tracks into a single output file (default: `true`)
-- **`subtitle_disposition`**: Automatically set default subtitle track (default: `true`)
-- **`subtitle_disposition_language`**: Languages to mark as default/forced
-  - Example: `["forced-ita", "ita-forced"]` for Italian forced subtitles
-- **`extension`**: Output file format (`"mkv"` or `"mp4"`)
-
-### Request Settings
-```json
-{
-    "REQUESTS": {
-        "verify": false,
-        "timeout": 30,
-        "max_retry": 10,
-        "use_proxy": false,
-        "proxy": {
-            "http": "http://localhost:8888",
-            "https": "http://localhost:8888"
-        }
-    }
-}
-```
-
-- **`verify`**: Enable SSL certificate verification (default: `false`)
-- **`timeout`**: Request timeout in seconds (default: `30`)
-- **`max_retry`**: Maximum retry attempts for failed requests (default: `10`)
-- **`use_proxy`**: Enable proxy support for HTTP requests (default: `false`)
-- **`proxy`**: Proxy configuration for HTTP and HTTPS connections
-  - **`http`**: HTTP proxy URL (e.g., `"http://localhost:8888"`)
-  - **`https`**: HTTPS proxy URL (e.g., `"http://localhost:8888"`)
-
-### Default Settings
-```json
-{
-    "DEFAULT": {
-        "close_console": true,
-        "show_message": false,
-        "fetch_domain_online": true
-    }
-}
-```
-
-- **`close_console`**: Automatically close console after download completion (default: `true`)
-- **`show_message`**: Display debug messages (default: `false`)
-- **`fetch_domain_online`**: Automatically fetch latest domains from GitHub (default: `true`)
-
----
-
-## Usage Examples
-
-### Basic Commands
-```bash
-# Show help and available sites
-python test_run.py -h
-
-# Search and download
-python test_run.py --site streamingcommunity --search "interstellar"
-
-# Auto-download first result
-python test_run.py --site streamingcommunity --search "interstellar" --auto-first
-
-# Use site by index
-python test_run.py --site 0 --search "interstellar"
-```
-
-## Global Search
-
-Search across multiple streaming sites simultaneously:
-
-```bash
-# Global search
-python test_run.py --global -s "cars"
-
-# Search by category
-python test_run.py --category 1    # Anime
-python test_run.py --category 2    # Movies & Series
-python test_run.py --category 3    # Series only
-```
-
-Results display title, media type, and source site in a consolidated table.
-
----
-
-## Advanced Features
-
-### Hook System
-
-Execute custom scripts before/after downloads. Configure in `config.json`:
+**Minimal custom rules shape:**
 
 ```json
 {
-  "HOOKS": {
-    "pre_run": [
-      {
-        "name": "prepare-env",
-        "type": "python",
-        "path": "scripts/prepare.py",
-        "args": ["--clean"],
-        "env": {"MY_FLAG": "1"},
-        "cwd": "~",
-        "os": ["linux", "darwin"],
-        "timeout": 60,
-        "enabled": true,
-        "continue_on_error": true
-      }
-    ],
-    "post_run": [
-      {
-        "name": "notify",
-        "type": "bash",
-        "command": "echo 'Download completed'"
-      }
-    ]
+  "licenseUrlIncludes": ["your-license-host"],
+  "licenseHeader": "optional-header-name-for-token",
+  "licenseWebRequestHosts": ["*://license.example.com/*"],
+  "manifestWebRequestHosts": ["*://*/*"],
+  "mpdUrlIncludes": [".mpd"],
+  "segmentUrlIncludes": ["/assets/"],
+  "deriveMpd": {
+    "enabled": true,
+    "pathMarker": "/assets/",
+    "masterFile": "master.mpd"
   }
 }
 ```
 
-#### Hook Configuration Options
+Rules are stored in Firefox as `sanaginx_config` (legacy `skool_*` keys are migrated automatically).
 
-- **`name`**: Descriptive name for the hook
-- **`type`**: Script type - `python`, `bash`, `sh`, `shell`, `bat`, `cmd`
-- **`path`**: Path to script file (alternative to `command`)
-- **`command`**: Inline command to execute (alternative to `path`)
-- **`args`**: List of arguments passed to the script
-- **`env`**: Additional environment variables as key-value pairs
-- **`cwd`**: Working directory for script execution (supports `~` and environment variables)
-- **`os`**: Optional OS filter - `["windows"]`, `["darwin"]` (macOS), `["linux"]`, or combinations
-- **`timeout`**: Maximum execution time in seconds (hook fails if exceeded)
-- **`enabled`**: Enable/disable the hook without removing configuration
-- **`continue_on_error`**: If `false`, stops execution when hook fails
+### 4. Download flow
 
-#### Hook Types
-
-- **Python hooks**: Run with current Python interpreter
-- **Bash/sh/shell hooks**: All three types execute via `/bin/bash -c` on macOS/Linux
-- **Bat/cmd/shell hooks**: Execute via `cmd /c` on Windows
-- **Inline commands**: Use `command` instead of `path` for simple one-liners. Note: `args` are ignored when using `command`; they only apply when using `path`.
-
-Hooks are automatically executed before (`pre_run`) and after (`post_run`) each download. In the GUI, `post_run` fires after every individual download completes; in CLI mode, `post_run` fires at the end of the main execution flow.
+1. Start the download server (next section)
+2. Open your site and **play** the protected video (so license + MPD traffic happens)
+3. Open the extension **popup** → **Download**
+4. Files land in `videos/` (or the path from `Conf/config.json` → `OUTPUT.root_path`)
 
 ---
 
-## Docker
+## Run the download server
 
-### Basic Setup
-```bash
-# Build image
-docker build -t streaming-community-api .
+From the **repo root**:
 
-# Run with Cloudflare DNS
-docker run -d --name streaming-community --dns 1.1.1.1 -p 8000:8000 streaming-community-api
+```powershell
+python firefox/server/download_server.py
 ```
 
-### Volumes and Permissions
-When mounting a local folder as a volume, you might encounter permission issues. Using `-u root` ensures the container has the necessary rights to write to your host machine:
+You should see:
 
-```bash
-docker run -d --name streaming-community --dns 1.1.1.1 -p 8000:8000 -u root -v D:\Download:/app/Video streaming-community-api
+```text
+SanaGinx DRM download server
+Listening on http://127.0.0.1:47984
 ```
 
-### Docker Compose Example
-Recommended for stability and easy DNS configuration:
+| Variable | Effect |
+|----------|--------|
+| `SANAGINX_SAVE_DIR` | Override output folder |
+| `STREAMINGCOMMUNITY_WVD_PATH` | Full path to `device.wvd` |
+| `STREAMINGCOMMUNITY_PRD_PATH` | Full path to `device.prd` (PlayReady) |
 
-```yaml
-services:
-  streaming-community:
-    build: .
-    container_name: streaming-community
-    user: root
-    dns:
-      - 1.1.1.1
-      - 8.8.8.8
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./Video:/app/Video
-    restart: unless-stopped
+The **Web GUI** can also start/stop this server from the DRM settings page.
+
+---
+
+## CDM setup (DRM keys)
+
+Without a working CDM, capture succeeds but **key extraction fails**.
+
+### Option A — Local `device.wvd` (recommended)
+
+1. Place **`device.wvd`** in:
+   - `binary/device.wvd` (inside this repo), **or**
+   - `C:\binary\device.wvd` on Windows
+2. Restart the download server
+3. Confirm with:
+
+```powershell
+python tools/verify_cdm_setup.py
+```
+
+Look for **local Widevine device** in the output (not only remote CDM).
+
+### Option B — Remote CDM on localhost
+
+1. Run a **pywidevine serve**-compatible API on your machine
+2. Copy `Conf/remote_cdm.localhost.EXAMPLE.json` → adjust `Conf/remote_cdm.json`:
+   - `host` — your serve base URL (e.g. `http://127.0.0.1:8787`)
+   - `secret` — matches serve `X-Secret-Key`
+   - `device_name` — device alias from serve
+
+### Option C — Third-party remote host
+
+Edit `Conf/remote_cdm.json` only if the host is **reachable** from your network (timeouts mean downloads will fail).
+
+> Never commit `device.wvd`, `device.prd`, or real secrets. They are listed in `.gitignore`.
+
+---
+
+## Web GUI
+
+```powershell
+cd GUI
+python manage.py migrate
+python manage.py runserver 0.0.0.0:8000
+```
+
+Open **http://127.0.0.1:8000** — navbar brand **SanaGinx**, search and download cards in English.
+
+Behind a reverse proxy, set `CSRF_TRUSTED_ORIGINS` and related Django env vars as needed.
+
+---
+
+## Cookies & login (`Conf/login.json`)
+
+Built-in streaming sites (GUI / CLI) read credentials from **`Conf/login.json`**.
+
+1. Copy the example:
+
+```powershell
+copy Conf\login.json.example Conf\login.json
+```
+
+2. Log in to the site in **Firefox** or Chrome
+3. Open **Developer Tools** (F12) → **Storage** / **Application** → **Cookies**
+4. Copy the values into the matching keys in `login.json`
+
+| Service | Keys in `login.json` | How to get them |
+|---------|----------------------|-----------------|
+| **mappl** | `mappl.session_cookie` | DevTools → Network → any request → copy full **Cookie** header (or paste `name=value; ...` string) |
+| **hydrahd** | `hydrahd.session_cookie` | Same — session cookies after login |
+| **Crunchyroll** | `crunchyroll.etp_rt`, `crunchyroll.device_id` | Application → Cookies |
+| **Mediaset Infinity** | `mediasetinfinity.beToken` | Cookie `beToken` |
+| **Discovery+ EU** | `discoveryeu.st` | Cookie `st` |
+| **Tubi** | `tubi.email`, `tubi.password` | Account credentials |
+| **TMDB** | `TMDB.api_key` | [themoviedb.org](https://www.themoviedb.org/settings/api) API key (metadata) |
+
+> `Conf/login.json` is **gitignored** — safe for your backup zip; do not publish it on GitHub.
+
+More screenshots for legacy services: [`.github/doc/login.md`](.github/doc/login.md)
+
+**Firefox extension DRM path** does not use `login.json` — you must be **logged in in the browser** when you play the video so the extension can capture license headers. Use Origin/Referer in extension options if the CDN requires them.
+
+---
+
+## Other config files
+
+| File | Purpose |
+|------|---------|
+| `Conf/config.json` | Output folders, download threads, ffmpeg-style processing |
+| `Conf/remote_cdm.json` | Remote Widevine / PlayReady CDM endpoints |
+| `Conf/user_prefs.json` | GUI / user preferences |
+| `Conf/domains.json` | Site domain list (auto-fetched if enabled) |
+
+Output directory default: **`videos/`** (`OUTPUT.root_path` in `config.json`).
+
+**Optional remote sync** (only if you host your own GitHub repo — not required):
+
+| Environment variable | Purpose |
+|---------------------|---------|
+| `SANAGINX_GITHUB_REPO` | `youruser/SanaGinx` for release/update checks |
+| `SANAGINX_RAW_BASE` | Raw URL base to download `Conf/*.json` when missing |
+| `SANAGINX_DOMAINS_URL` | Full URL to a `domains.json` when `fetch_domain_online` is true |
+| `SANAGINX_BINARY_RAW` | Raw base for ffmpeg/binary auto-download manifest |
+
+By default SanaGinx uses **local `Conf/` files only** (no upstream Arrowar links).
+
+---
+
+## Project layout
+
+```text
+SanaGinx/
+├── Conf/                    # config, login (local), remote CDM
+├── GUI/                     # Django web GUI
+├── firefox/
+│   ├── extension/           # SanaGinx DRM Capture (load manifest.json)
+│   │   ├── options.html     # capture rules UI
+│   │   └── examples/        # pallycon-dash-preset.json
+│   └── server/
+│       └── download_server.py
+├── StreamingCommunity/      # download + DRM core
+├── binary/                  # put device.wvd here (not committed)
+├── tools/
+│   └── verify_cdm_setup.py
+└── README.md                # you are here
 ```
 
 ---
 
-## TODO
+## Publish / backup checklist
 
-- [ ] Improve the GUI; Enhance the graphical user interface and display images for all episodes.
-- [ ] Add images to search results: Show a thumbnail/image for each title in the search results.
-- [ ] Add images for each episode: Display a dedicated image or thumbnail for every episode.
-- [ ] Improve season selection: Populate the season selector using the actual extracted seasons (real data), instead of assuming a range from 1 to N.
-- [ ] Add login for discovery, dmax ...
-- [ ] Use asyncio for manual downloader
-
----
-
-## Related Projects
-
-- **[MammaMia](https://github.com/UrloMythus/MammaMia)** - Stremio addon for Italian streaming
-- **[Unit3Dup](https://github.com/31December99/Unit3Dup)** - Torrent automation for Unit3D tracker
+- [ ] Remove `Conf/login.json` from any public repo (use `login.json.example` only)
+- [ ] Do not commit `binary/*.wvd` or `binary/*.prd`
+- [ ] Exclude dev folders: `editingskool/`, `creators-club/`, `ai-cache/`, `.cursor/`
+- [ ] Run `python tools/verify_cdm_setup.py` on a clean machine
+- [ ] Load extension from `firefox/extension/` and test one DRM title
 
 ---
 
-## Disclaimer
->
-> This software is provided strictly for **educational and research purposes only**. The author and contributors:
->
-> - **DO NOT** assume any responsibility for illegal or unauthorized use of this software
-> - **DO NOT** encourage, promote, or support the download of copyrighted content without proper authorization
-> - **DO NOT** provide, include, or facilitate obtaining any DRM circumvention tools, CDM modules, or decryption keys
-> - **DO NOT** endorse piracy or copyright infringement in any form
->
-> ### User Responsibilities
->
-> By using this software, you agree that:
->
-> 1. **You are solely responsible** for ensuring your use complies with all applicable local, national, and international laws and regulations
-> 2. **You must have legal rights** to access and download any content you process with this software
-> 3. **You will not use** this software to circumvent DRM, access unauthorized content, or violate copyright laws
-> 4. **You understand** that downloading copyrighted content without permission is illegal in most jurisdictions
->
-> ### No Warranty
->
-> This software is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose, and noninfringement. In no event shall the authors or copyright holders be liable for any claim, damages, or other liability, whether in an action of contract, tort, or otherwise, arising from, out of, or in connection with the software or the use or other dealings in the software.
->
-> **If you do not agree with these terms, do not use this software.**
+## Troubleshooting
+
+| Symptom | Fix |
+|---------|-----|
+| Extension says server not running | Start `python firefox/server/download_server.py` on port **47984** |
+| Capture works, download fails on keys | Add `device.wvd` or fix `Conf/remote_cdm.json` — run `verify_cdm_setup.py` |
+| Remote CDM timeout | Host unreachable; use local CDM or localhost serve |
+| GUI search in Italian | GUI forces English titles; clear old DB/cards if needed |
+| `mappl: failed to fetch` / curl timeout | Network/DNS to site, not cookies — check connectivity |
 
 ---
 
 <div align="center">
-**Made with ❤️ for streaming lovers**
-*If you find this project useful, consider starring it! ⭐*
+
+**SanaGinx** · built on the StreamingCommunity download stack · v1.0.8
+
 </div>

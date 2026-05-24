@@ -1,4 +1,4 @@
-# Firefox Skool DRM download server — process + log buffer for Crypter GUI.
+# SanaGinx DRM download server (firefox/server/download_server.py) — process + logs for GUI.
 # Does not modify firefox/server/download_server.py or the extension.
 
 from __future__ import annotations
@@ -132,7 +132,7 @@ def start_server() -> Tuple[bool, str]:
 
     with _LOCK:
         if _proc is not None and _proc.poll() is None:
-            return False, "Firefox DRM server is already running (managed by Crypter)."
+            return False, "Firefox DRM server is already running (managed by SanaGinx)."
     # Avoid starting a second listener on the same port (e.g. manual `python firefox/server/download_server.py`).
     if _is_port_open():
         return (
