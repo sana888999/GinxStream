@@ -1,7 +1,7 @@
 <div align="center">
 
 # SanaGinx
-(build on top of Arrow)
+(Build on top of Arrow)
 
 **Web GUI + universal Firefox DRM capture + StreamingCommunity download core**
 
